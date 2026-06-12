@@ -32,7 +32,7 @@
                 </Grid>
                 <ItemsControl ItemsSource="{Binding MyComputerItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="local:SidebarItem">
+                        <DataTemplate DataType="local:SidebarItem+Item">
                             <Border Height="26" Padding="20,0,0,0" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
                                     Style="{StaticResource SidebarItemStyle}">
                                 <Grid>
@@ -61,7 +61,7 @@
                 </Grid>
                 <ItemsControl ItemsSource="{Binding NetworkItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="local:SidebarItem">
+                        <DataTemplate DataType="local:SidebarItem+Item">
                             <Border Height="26" Padding="20,0,0,0" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
                                     Style="{StaticResource SidebarItemStyle}">
                                 <Grid>
@@ -90,7 +90,7 @@
                 </Grid>
                 <ItemsControl ItemsSource="{Binding BookmarkItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="local:SidebarItem">
+                        <DataTemplate DataType="local:SidebarItem+Item">
                             <Border Height="26" Padding="20,0,0,0" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
                                     Style="{StaticResource SidebarItemStyle}">
                                 <Grid>

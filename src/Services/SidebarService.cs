@@ -9,7 +9,7 @@ namespace dot_net_fm;
 /// Loads, saves, and resolves sidebar configuration from a JSON file.
 /// Supports %ENV_VAR% path resolution and special folder tokens.
 /// </summary>
-public static class SidebarConfigService
+public static class SidebarService
 {
     private const string ConfigFileName = "sidebar-config.json";
     private static readonly JsonSerializerOptions JsonOptions = new()
@@ -25,14 +25,14 @@ public static class SidebarConfigService
     /// Loads config from the JSON file on disk.
     /// Returns an empty config if the file is missing or corrupted.
     /// </summary>
-    public static SidebarItemConfig Load()
+    public static SidebarItem Load()
     {
         if (File.Exists(ConfigPath))
         {
             try
             {
                 string json = File.ReadAllText(ConfigPath);
-                var config = JsonSerializer.Deserialize<SidebarItemConfig>(json, JsonOptions);
+                var config = JsonSerializer.Deserialize<SidebarItem>(json, JsonOptions);
                 if (config != null)
                     return config;
             }
@@ -42,13 +42,13 @@ public static class SidebarConfigService
             }
         }
 
-        return new SidebarItemConfig();
+        return new SidebarItem();
     }
 
     /// <summary>
     /// Persists the current config to disk.
     /// </summary>
-    public static void Save(SidebarItemConfig config)
+    public static void Save(SidebarItem config)
     {
         string json = JsonSerializer.Serialize(config, JsonOptions);
         File.WriteAllText(ConfigPath, json);
@@ -91,16 +91,16 @@ public static class SidebarConfigService
     /// <summary>
     /// Adds a bookmark and saves the config.
     /// </summary>
-    public static void AddBookmark(SidebarItemConfig config, string name, string path, string icon = "Home")
+    public static void AddBookmark(SidebarItem config, string name, string path, string icon = "Home")
     {
-        config.Bookmarks.Add(new SidebarItem { Name = name, Path = path, IconPath = icon });
+        config.Bookmarks.Add(new SidebarItem.Item { Name = name, Path = path, IconPath = icon });
         Save(config);
     }
 
     /// <summary>
     /// Removes a bookmark by name and saves the config.
     /// </summary>
-    public static bool RemoveBookmark(SidebarItemConfig config, string name)
+    public static bool RemoveBookmark(SidebarItem config, string name)
     {
         int removed = config.Bookmarks.RemoveAll(b =>
             b.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
@@ -108,5 +108,4 @@ public static class SidebarConfigService
             Save(config);
         return removed > 0;
     }
-
 }

@@ -16,9 +16,9 @@ namespace dot_net_fm;
 public partial class MainWindow : Window
 {
     public ObservableCollection<FolderItem> Folders { get; } = new();
-    public ObservableCollection<SidebarItem> MyComputerItems { get; } = new();
-    public ObservableCollection<SidebarItem> NetworkItems { get; } = new();
-    public ObservableCollection<SidebarItem> BookmarkItems { get; } = new();
+    public ObservableCollection<SidebarItem.Item> MyComputerItems { get; } = new();
+    public ObservableCollection<SidebarItem.Item> NetworkItems { get; } = new();
+    public ObservableCollection<SidebarItem.Item> BookmarkItems { get; } = new();
 
     private readonly NavigationService _navigation;
     private readonly KeybindingService _keybinding;
@@ -84,7 +84,7 @@ public partial class MainWindow : Window
 
     private void InitializeSidebar()
     {
-        SidebarItemConfig config = SidebarConfigService.Load();
+        SidebarItem config = SidebarService.Load();
         SidebarIconMapper.Initialize(config.SidebarIcons);
 
         string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -98,13 +98,13 @@ public partial class MainWindow : Window
 
             foreach (var entry in section.Items)
             {
-                string resolvedPath = SidebarConfigService.ResolvePath(entry.Path);
+                string resolvedPath = SidebarService.ResolvePath(entry.Path);
                 string displayName  = entry.Name;
                 if (entry.Name.Equals("Home", StringComparison.OrdinalIgnoreCase) &&
                     resolvedPath.Equals(userProfilePath, StringComparison.OrdinalIgnoreCase))
                     displayName = userName;
 
-                target.Add(new SidebarItem
+                target.Add(new SidebarItem.Item
                 {
                     Name     = displayName,
                     IconPath = SidebarIconMapper.GetIconPath(entry.IconPath),
@@ -115,11 +115,11 @@ public partial class MainWindow : Window
 
         foreach (var bm in config.Bookmarks)
         {
-            BookmarkItems.Add(new SidebarItem
+            BookmarkItems.Add(new SidebarItem.Item
             {
                 Name     = bm.Name,
                 IconPath = SidebarIconMapper.GetIconPath(bm.IconPath),
-                Path     = SidebarConfigService.ResolvePath(bm.Path),
+                Path     = SidebarService.ResolvePath(bm.Path),
             });
         }
     }

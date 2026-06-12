@@ -1,35 +1,55 @@
+using System.Collections.Generic;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
 namespace dot_net_fm;
 
-public class SidebarItem : INotifyPropertyChanged
+/// <summary>
+/// Root configuration for sidebar items, icon mappings, and bookmarks.
+/// Also contains nested Item (entry) and Section models.
+/// Loaded from sidebar-config.json next to the executable.
+/// </summary>
+public class SidebarItem
 {
-    private string _name = "";
-    private string _iconPath = "";
-    private string _path = "";
+    public Dictionary<string, string> SidebarIcons { get; set; } = new();
+    public List<Section> Sections { get; set; } = new();
+    public List<Item> Bookmarks { get; set; } = new();
 
-    public string Name
+    public class Section
     {
-        get => _name;
-        set { _name = value; OnPropertyChanged(); }
+        public string Name { get; set; } = "";
+        public List<Item> Items { get; set; } = new();
     }
 
-    [JsonPropertyName("Icon")]
-    public string IconPath
+    public class Item : INotifyPropertyChanged
     {
-        get => _iconPath;
-        set { _iconPath = value; OnPropertyChanged(); }
-    }
+        private string _name = "";
+        private string _iconPath = "";
+        private string _path = "";
 
-    public string Path
-    {
-        get => _path;
-        set { _path = value; OnPropertyChanged(); }
-    }
+        public string Name
+        {
+            get => _name;
+            set { _name = value; OnPropertyChanged(); }
+        }
 
-    public event PropertyChangedEventHandler? PropertyChanged;
-    protected void OnPropertyChanged([CallerMemberName] string? name = null)
-        => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        [JsonPropertyName("Icon")]
+        public string IconPath
+        {
+            get => _iconPath;
+            set { _iconPath = value; OnPropertyChanged(); }
+        }
+
+        public string Path
+        {
+            get => _path;
+            set { _path = value; OnPropertyChanged(); }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
+
+        protected void OnPropertyChanged([CallerMemberName] string? name = null)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+    }
 }
