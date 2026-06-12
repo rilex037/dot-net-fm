@@ -100,7 +100,7 @@
                             </Border.Style>
                             
                             <StackPanel Orientation="Vertical" HorizontalAlignment="Center" VerticalAlignment="Top" Margin="4"
-                                        Width="{Binding IconSize, RelativeSource={RelativeSource AncestorType=local:FileGridView}, ConverterParameter=1.4}">
+                                        Width="{Binding IconSize, RelativeSource={RelativeSource AncestorType=local:FileGridView}, ConverterParameter=2.2}">
                                 
                                 <Image x:Name="IconImage" Stretch="Uniform" Margin="0,0,0,6"
                                        Width="{Binding IconSize, RelativeSource={RelativeSource AncestorType=local:FileGridView}}"
@@ -110,7 +110,7 @@
                                 <TextBlock x:Name="NameText" Text="{Binding Name}" FontSize="11" 
                                            Foreground="{StaticResource TextPrimaryBrush}" 
                                            HorizontalAlignment="Center" TextAlignment="Center" LineHeight="14"
-                                           TextWrapping="Wrap" MaxHeight="28" TextTrimming="CharacterEllipsis"
+                                           TextWrapping="Wrap"
                                            MouseLeftButtonDown="NameText_MouseLeftButtonDown">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
@@ -144,6 +144,7 @@
 
                                 <TextBlock Text="{Binding ItemCount}" FontSize="10" 
                                            Foreground="{StaticResource TextSecondaryBrush}" 
+                                           TextWrapping="Wrap"
                                            HorizontalAlignment="Center" TextAlignment="Center" Margin="0,2,0,0"/>
                             </StackPanel>
                         </Border>
