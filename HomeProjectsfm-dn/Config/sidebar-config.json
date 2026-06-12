@@ -1,0 +1,53 @@
+{
+  "SidebarIcons": {
+    "Home": "sidebar-home.svg",
+    "Desktop": "sidebar-desktop.svg",
+    "Documents": "sidebar-documents.svg",
+    "Music": "sidebar-music.svg",
+    "Pictures": "sidebar-pictures.svg",
+    "Videos": "sidebar-videos.svg",
+    "Downloads": "sidebar-downloads.svg",
+    "Recent": "sidebar-recent.svg",
+    "MyComputer": "sidebar-filesystem.svg",
+    "Trash": "sidebar-trash.svg",
+    "Network": "sidebar-network.svg"
+  },
+  "Sections": [
+    {
+      "Name": "My Computer",
+      "Items": [
+        { "Name": "Home", "Icon": "Home", "Path": "%USERPROFILE%" },
+        {
+          "Name": "Desktop",
+          "Icon": "Desktop",
+          "Path": "%USERPROFILE%\\Desktop"
+        },
+        {
+          "Name": "Documents",
+          "Icon": "Documents",
+          "Path": "%USERPROFILE%\\Documents"
+        },
+        { "Name": "Music", "Icon": "Music", "Path": "%USERPROFILE%\\Music" },
+        {
+          "Name": "Pictures",
+          "Icon": "Pictures",
+          "Path": "%USERPROFILE%\\Pictures"
+        },
+        { "Name": "Videos", "Icon": "Videos", "Path": "%USERPROFILE%\\Videos" },
+        {
+          "Name": "Downloads",
+          "Icon": "Downloads",
+          "Path": "%USERPROFILE%\\Downloads"
+        },
+        { "Name": "Recent", "Icon": "Recent", "Path": "" },
+        { "Name": "My Computer", "Icon": "MyComputer", "Path": "::mycomputer" },
+        { "Name": "Trash", "Icon": "Trash", "Path": "" }
+      ]
+    },
+    {
+      "Name": "Network",
+      "Items": [{ "Name": "Network", "Icon": "Network", "Path": "" }]
+    }
+  ],
+  "Bookmarks": []
+}

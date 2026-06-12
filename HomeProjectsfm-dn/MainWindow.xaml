@@ -1,0 +1,59 @@
+﻿<Window x:Class="FmDn.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:FmDn"
+        mc:Ignorable="d"
+        Title="Home" Height="768" Width="1366"
+        WindowStyle="None"
+        WindowState="Normal"
+        ResizeMode="CanResize"
+        Background="{StaticResource BackgroundBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        FontFamily="Segoe UI"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        PreviewKeyDown="Window_PreviewKeyDown">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="30" GlassFrameThickness="0" CornerRadius="20" ResizeBorderThickness="6"/>
+    </WindowChrome.WindowChrome>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="30"/>
+            <RowDefinition Height="26"/>
+            <RowDefinition Height="36"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="24"/>
+        </Grid.RowDefinitions>
+
+        <!-- ROW 0: Title Bar (Caption area) -->
+        <local:TitleBar x:Name="TitleBar" Grid.Row="0"/>
+
+        <!-- ROW 1: Menu Bar (below caption area, normal hit testing) -->
+        <local:MenuBar x:Name="MenuBar" Grid.Row="1"/>
+
+        <!-- ROW 2: Navigation Toolbar -->
+        <local:NavigationToolbar x:Name="NavToolbar" Grid.Row="2"/>
+
+        <!-- ROW 3: Two-Panel Layout -->
+        <Grid Grid.Row="3">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Sidebar -->
+            <local:SidebarPanel Grid.Column="0" x:Name="SidebarPanel"/>
+
+            <!-- File Grid View -->
+            <local:FileGridView Grid.Column="1" x:Name="FileGrid"/>
+        </Grid>
+
+        <!-- ROW 4: Status Bar -->
+        <local:StatusLayout x:Name="StatusBar" Grid.Row="4"/>
+    </Grid>
+</Window>
