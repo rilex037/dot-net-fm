@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Maps sidebar item names to SVG icon file paths.

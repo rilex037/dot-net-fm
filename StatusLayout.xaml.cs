@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Status bar displaying status text and zoom slider.

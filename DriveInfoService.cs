@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Single responsibility: builds FolderItem representations of system drives.

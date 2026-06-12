@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Interop;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Shows the native Windows shell context menu (Explorer right-click menu)

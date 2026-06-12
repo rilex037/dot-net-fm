@@ -1,8 +1,8 @@
-<UserControl x:Class="FmDn.SidebarPanel"
+<UserControl x:Class="dot_net_fm.SidebarPanel"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:svg="clr-namespace:SharpVectors.Converters;assembly=SharpVectors.Converters.Wpf"
-             xmlns:local="clr-namespace:FmDn">
+             xmlns:local="clr-namespace:dot_net_fm">
 
     <UserControl.Resources>
         <!-- Sidebar item style with hover -->

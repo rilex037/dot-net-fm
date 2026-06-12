@@ -1,7 +1,7 @@
-<UserControl x:Class="FmDn.FileGridView"
+<UserControl x:Class="dot_net_fm.FileGridView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:FmDn"
+             xmlns:local="clr-namespace:dot_net_fm"
              Focusable="True">
 
     <UserControl.Resources>

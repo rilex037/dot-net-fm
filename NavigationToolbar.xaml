@@ -1,4 +1,4 @@
-<UserControl x:Class="FmDn.NavigationToolbar"
+<UserControl x:Class="dot_net_fm.NavigationToolbar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 

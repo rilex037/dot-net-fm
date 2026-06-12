@@ -10,7 +10,7 @@ using System.Windows.Media;
 using System.Windows.Threading;
 using Microsoft.VisualBasic.FileIO;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Handles all file/folder item interactions:

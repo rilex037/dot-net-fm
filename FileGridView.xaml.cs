@@ -5,7 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Grid view for displaying files and folders with interaction handling.

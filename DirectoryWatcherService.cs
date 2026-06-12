@@ -3,7 +3,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Threading;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Watches a directory for file system changes (create, delete, rename).

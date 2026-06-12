@@ -1,4 +1,4 @@
-<UserControl x:Class="FmDn.StatusLayout"
+<UserControl x:Class="dot_net_fm.StatusLayout"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 

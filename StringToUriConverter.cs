@@ -1,7 +1,7 @@
 using System.Globalization;
 using System.Windows.Data;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Converts a file path string to an absolute URI for SvgViewbox.UriSource binding.

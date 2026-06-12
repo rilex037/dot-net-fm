@@ -5,7 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Sidebar panel layout with My Computer, Network, and Bookmarks sections.

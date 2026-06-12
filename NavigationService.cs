@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Handles all navigation state and logic: NavigateTo, LoadDirectory, back/forward/up stacks.

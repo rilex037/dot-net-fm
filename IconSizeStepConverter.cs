@@ -3,7 +3,7 @@ using System.Globalization;
 using System.Windows;
 using System.Windows.Data;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Converts a discrete zoom step (0–5) into the icon pixel size

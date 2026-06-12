@@ -2,7 +2,7 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Menu bar — uses native WPF Menu/MenuItem so popup lifecycle,
@@ -37,8 +37,8 @@ public partial class MenuBar : UserControl
         var versionText = version?.ToString(3) ?? "0.0.1";
 
         MessageBox.Show(
-            $"FmDn File Manager\nVersion {versionText}-alpha\n\nA lightweight file manager built with WPF.",
-            "About FmDn",
+            $"dot_net_fm File Manager\nVersion {versionText}-alpha\n\nA lightweight file manager built with WPF.",
+            "About dot_net_fm",
             MessageBoxButton.OK,
             MessageBoxImage.Information);
     }

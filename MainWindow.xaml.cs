@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Threading;
@@ -7,11 +7,11 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Main window: thin layout shell assembling all UserControls
-/// and wiring up services. No business logic — delegates to services.
+/// and wiring up services. No business logic - delegates to services.
 /// </summary>
 public partial class MainWindow : Window
 {
@@ -27,7 +27,7 @@ public partial class MainWindow : Window
     private bool _isRefreshing;
 
     // Cancellation scope for the current batch of icon loads.
-    // Signalled on navigation — cancels all in-flight LoadIconAsync calls immediately
+    // Signalled on navigation - cancels all in-flight LoadIconAsync calls immediately
     // so old FolderItems become unreachable and GC reclaims their memory.
     private CancellationTokenSource? _navCts;
 
@@ -61,15 +61,15 @@ public partial class MainWindow : Window
         {
             FileGrid.IconSize = size;
 
-            // Zoom changed — cancel any in-flight icon loads at the old size
+            // Zoom changed - cancel any in-flight icon loads at the old size
             // and re-load all visible items at the new pixel size.
             // This ensures we only hold BitmapSources sized for the current zoom,
-            // not 256×256 for a 24×24 display.
+            // not 256�256 for a 24�24 display.
             _navCts?.Cancel();
             _navCts?.Dispose();
             _navCts = null;
 
-            // Dispose current NativeIcon on all items — forces re-fetch at new size
+            // Dispose current NativeIcon on all items - forces re-fetch at new size
             foreach (var item in Folders)
                 item.NativeIcon = null;
 
@@ -146,7 +146,7 @@ public partial class MainWindow : Window
             // 3. Fetch directory entries (background thread, no icons yet)
             var items = await _navigation.LoadDirectoryItemsAsync(path);
 
-            // 4. Populate collection — WPF renders the grid with no icons (instant)
+            // 4. Populate collection - WPF renders the grid with no icons (instant)
             _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
             Folders.Clear();
             foreach (var item in items)
@@ -158,7 +158,7 @@ public partial class MainWindow : Window
             if (path != NavigationService.MyComputerPath)
                 _directoryWatcher.Watch(path);
 
-            // 5. Force full GC collection — disposed BitmapSources are freed now
+            // 5. Force full GC collection - disposed BitmapSources are freed now
             GC.Collect(2, GCCollectionMode.Forced, blocking: true);
             GC.WaitForPendingFinalizers();
             GC.Collect(2, GCCollectionMode.Forced, blocking: true);
@@ -169,7 +169,7 @@ public partial class MainWindow : Window
             // 7. Load icons in small batches so peak working set stays low.
             //    Each batch yields a frame so the UI stays responsive and already-loaded
             //    thumbnails are visible immediately.
-            //    Icons are fetched at exactly the current zoom level — no oversized
+            //    Icons are fetched at exactly the current zoom level - no oversized
             //    BitmapSources wasting memory at small zoom.
             _navCts = new CancellationTokenSource();
             var navToken = _navCts.Token;
@@ -328,7 +328,7 @@ public partial class MainWindow : Window
     }
 
     /// <summary>
-    /// Handles directory change events from the watcher — refreshes the current view.
+    /// Handles directory change events from the watcher - refreshes the current view.
     /// Guards against re-entrant refreshes while one is already in flight.
     /// </summary>
     private void OnDirectoryChanged()

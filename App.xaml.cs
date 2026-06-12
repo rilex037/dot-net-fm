@@ -1,8 +1,8 @@
-﻿using System.Configuration;
+using System.Configuration;
 using System.Data;
 using System.Windows;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Interaction logic for App.xaml

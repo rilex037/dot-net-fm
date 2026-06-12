@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Root configuration for sidebar items, icon mappings, and bookmarks.

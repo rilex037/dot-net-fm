@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Input;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Handles keyboard shortcut dispatch. No UI dependencies — only key identification and events.

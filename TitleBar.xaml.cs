@@ -3,7 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Title bar with window title and chrome controls (minimize, maximize, close).

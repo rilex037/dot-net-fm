@@ -5,7 +5,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Media.Imaging;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 /// <summary>
 /// Represents a single file or folder in the grid view.

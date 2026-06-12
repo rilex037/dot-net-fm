@@ -1,7 +1,7 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 
-namespace FmDn;
+namespace dot_net_fm;
 
 public class SidebarItem : INotifyPropertyChanged
 {
