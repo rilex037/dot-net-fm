@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Text.Json.Serialization;
 
 namespace dot_net_fm;
 
@@ -15,6 +16,7 @@ public class SidebarItem : INotifyPropertyChanged
         set { _name = value; OnPropertyChanged(); }
     }
 
+    [JsonPropertyName("Icon")]
     public string IconPath
     {
         get => _iconPath;

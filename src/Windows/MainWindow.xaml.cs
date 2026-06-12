@@ -64,7 +64,7 @@ public partial class MainWindow : Window
             // Zoom changed - cancel any in-flight icon loads at the old size
             // and re-load all visible items at the new pixel size.
             // This ensures we only hold BitmapSources sized for the current zoom,
-            // not 256×256 for a 24×24 display.
+            // not 256Ã—256 for a 24Ã—24 display.
             _navCts?.Cancel();
             _navCts?.Dispose();
             _navCts = null;
@@ -84,7 +84,7 @@ public partial class MainWindow : Window
 
     private void InitializeSidebar()
     {
-        SidebarConfig config = SidebarConfigService.Load();
+        SidebarItemConfig config = SidebarConfigService.Load();
         SidebarIconMapper.Initialize(config.SidebarIcons);
 
         string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
@@ -107,7 +107,7 @@ public partial class MainWindow : Window
                 target.Add(new SidebarItem
                 {
                     Name     = displayName,
-                    IconPath = SidebarIconMapper.GetIconPath(entry.Icon),
+                    IconPath = SidebarIconMapper.GetIconPath(entry.IconPath),
                     Path     = resolvedPath,
                 });
             }
@@ -118,7 +118,7 @@ public partial class MainWindow : Window
             BookmarkItems.Add(new SidebarItem
             {
                 Name     = bm.Name,
-                IconPath = SidebarIconMapper.GetIconPath(bm.Icon),
+                IconPath = SidebarIconMapper.GetIconPath(bm.IconPath),
                 Path     = SidebarConfigService.ResolvePath(bm.Path),
             });
         }

@@ -19,6 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ApplicationDefinition Include="src\Windows\App.xaml" />
+  </ItemGroup>
+
+  <ItemGroup>
     <None Remove="Assets\Icons\*.svg" />
     <Content Include="Assets\Icons\*.svg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

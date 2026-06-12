@@ -25,14 +25,14 @@ public static class SidebarConfigService
     /// Loads config from the JSON file on disk.
     /// Returns an empty config if the file is missing or corrupted.
     /// </summary>
-    public static SidebarConfig Load()
+    public static SidebarItemConfig Load()
     {
         if (File.Exists(ConfigPath))
         {
             try
             {
                 string json = File.ReadAllText(ConfigPath);
-                var config = JsonSerializer.Deserialize<SidebarConfig>(json, JsonOptions);
+                var config = JsonSerializer.Deserialize<SidebarItemConfig>(json, JsonOptions);
                 if (config != null)
                     return config;
             }
@@ -42,13 +42,13 @@ public static class SidebarConfigService
             }
         }
 
-        return new SidebarConfig();
+        return new SidebarItemConfig();
     }
 
     /// <summary>
     /// Persists the current config to disk.
     /// </summary>
-    public static void Save(SidebarConfig config)
+    public static void Save(SidebarItemConfig config)
     {
         string json = JsonSerializer.Serialize(config, JsonOptions);
         File.WriteAllText(ConfigPath, json);
@@ -91,16 +91,16 @@ public static class SidebarConfigService
     /// <summary>
     /// Adds a bookmark and saves the config.
     /// </summary>
-    public static void AddBookmark(SidebarConfig config, string name, string path, string icon = "Home")
+    public static void AddBookmark(SidebarItemConfig config, string name, string path, string icon = "Home")
     {
-        config.Bookmarks.Add(new BookmarkEntry { Name = name, Path = path, Icon = icon });
+        config.Bookmarks.Add(new SidebarItem { Name = name, Path = path, IconPath = icon });
         Save(config);
     }
 
     /// <summary>
     /// Removes a bookmark by name and saves the config.
     /// </summary>
-    public static bool RemoveBookmark(SidebarConfig config, string name)
+    public static bool RemoveBookmark(SidebarItemConfig config, string name)
     {
         int removed = config.Bookmarks.RemoveAll(b =>
             b.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
