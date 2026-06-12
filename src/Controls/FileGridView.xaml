@@ -64,7 +64,10 @@
           PreviewMouseLeftButtonDown="FileView_PreviewMouseLeftButtonDown"
           PreviewMouseMove="FileView_PreviewMouseMove"
           PreviewMouseLeftButtonUp="FileView_PreviewMouseLeftButtonUp"
-          PreviewMouseRightButtonUp="FileView_PreviewMouseRightButtonUp">
+          PreviewMouseRightButtonUp="FileView_PreviewMouseRightButtonUp"
+          AllowDrop="True"
+          DragOver="FileView_DragOver"
+          Drop="FileView_Drop">
 
         <ScrollViewer x:Name="FileScrollViewer"
                       VerticalScrollBarVisibility="Auto"

@@ -1,6 +1,7 @@
 <UserControl x:Class="dot_net_fm.MenuBar"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:dot_net_fm"
              Background="{StaticResource ToolbarBrush}">
 
     <UserControl.Resources>
@@ -49,9 +50,28 @@
                                 CornerRadius="3"
                                 Margin="4,1"
                                 Padding="10,5,14,5">
-                            <ContentPresenter ContentSource="Header"
-                                              RecognizesAccessKey="True"
-                                              VerticalAlignment="Center"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <ContentPresenter Grid.Column="0"
+                                                  ContentSource="Icon"
+                                                  RecognizesAccessKey="True"
+                                                  VerticalAlignment="Center"/>
+                                <ContentPresenter Grid.Column="1"
+                                                  ContentSource="Header"
+                                                  RecognizesAccessKey="True"
+                                                  Margin="8,0,0,0"
+                                                  VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="2"
+                                           Text="{Binding InputGestureText, RelativeSource={RelativeSource TemplatedParent}}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="11"
+                                           VerticalAlignment="Center"
+                                           Margin="16,0,0,0"/>
+                            </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
@@ -124,14 +144,23 @@
 
     <Menu VerticalAlignment="Center" BorderThickness="0">
         <MenuItem Header="_File" Style="{StaticResource TopItem}">
-            <MenuItem Header="E_xit" Style="{StaticResource DropItem}" Click="Exit_Click"/>
+            <MenuItem Header="E_xit" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Exit}"/>
         </MenuItem>
         <MenuItem Header="_Edit" Style="{StaticResource TopItem}">
-            <MenuItem Header="_Rename"  Style="{StaticResource DropItem}" Click="Rename_Click" InputGestureText="F2"/>
+            <MenuItem Header="Cop_y"  Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Copy}"/>
+            <MenuItem Header="Cu_t"   Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Cut}"/>
+            <MenuItem Header="_Paste" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Paste}"/>
             <Separator Style="{StaticResource MenuSep}"/>
-            <MenuItem Header="_Delete"  Style="{StaticResource DropItem}" Click="Delete_Click" InputGestureText="Delete"/>
+            <MenuItem Header="_Rename"  Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Rename}"/>
+            <Separator Style="{StaticResource MenuSep}"/>
+            <MenuItem Header="_Delete"  Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Delete}"/>
         </MenuItem>
-        <MenuItem Header="_View" Style="{StaticResource TopItem}"/>
+        <MenuItem Header="_View" Style="{StaticResource TopItem}">
+            <MenuItem Header="_Refresh" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Refresh}"/>
+            <Separator Style="{StaticResource MenuSep}"/>
+            <MenuItem Header="Zoom _In"   Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.ZoomIn}"/>
+            <MenuItem Header="Zoom _Out"  Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.ZoomOut}"/>
+        </MenuItem>
         <MenuItem Header="_Help" Style="{StaticResource TopItem}">
             <MenuItem Header="_About dot_net_fm" Style="{StaticResource DropItem}" Click="About_Click"/>
         </MenuItem>

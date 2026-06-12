@@ -41,6 +41,16 @@ public partial class FileGridView : UserControl
         set => SetValue(IconSizeProperty, value);
     }
 
+    public static readonly DependencyProperty CurrentPathProperty =
+        DependencyProperty.Register(nameof(CurrentPath), typeof(string), typeof(FileGridView),
+            new PropertyMetadata(""));
+
+    public string CurrentPath
+    {
+        get => (string)GetValue(CurrentPathProperty);
+        set => SetValue(CurrentPathProperty, value);
+    }
+
     public FileGridView()
     {
         InitializeComponent();
@@ -137,6 +147,9 @@ public partial class FileGridView : UserControl
     {
         if (InteractionService == null) return;
 
+        if (Folders != null)
+            InteractionService.UpdateDrag(this, Folders);
+
         var pos = e.GetPosition(SelectionCanvas);
         InteractionService.HandleRubberBandMouseMove(pos, SelectionCanvas, SelectionBorder);
 
@@ -150,8 +163,6 @@ public partial class FileGridView : UserControl
     {
         InteractionService?.HandleRubberBandMouseUp(SelectionCanvas, SelectionBorder);
     }
-
-    public event Action<MouseWheelEventArgs>? MouseWheelPreview;
 
     /// <summary>
     /// Handles right-click: shows native shell context menu for selected items.
@@ -195,16 +206,33 @@ public partial class FileGridView : UserControl
         }
     }
 
+    public event Action<MouseWheelEventArgs>? MouseWheelPreview;
+
     private void FileScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {
         MouseWheelPreview?.Invoke(e);
 
         if (!e.Handled)
         {
-            // Default scroll behavior
             FileScrollViewer.ScrollToVerticalOffset(FileScrollViewer.VerticalOffset - e.Delta / 3.0);
             e.Handled = true;
         }
+    }
+
+    private void FileView_DragOver(object sender, DragEventArgs e)
+    {
+        InteractionService?.HandleDragOver(e);
+    }
+
+    private void FileView_Drop(object sender, DragEventArgs e)
+    {
+        if (InteractionService == null) return;
+
+        var pos = e.GetPosition(FolderItemsControl);
+        var hitItem = InteractionService.GetItemAtPoint(pos, FolderItemsControl);
+        string targetDir = (hitItem != null && hitItem.IsFolder) ? hitItem.FullPath : CurrentPath;
+
+        InteractionService.HandleDrop(e, targetDir);
     }
 
 }

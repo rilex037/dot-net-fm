@@ -21,7 +21,6 @@ public partial class MainWindow : Window
     public ObservableCollection<SidebarItem.Item> BookmarkItems { get; } = new();
 
     private readonly NavigationService _navigation;
-    private readonly KeybindingService _keybinding;
     private readonly FileInteractionService _interaction;
     private readonly DirectoryWatcherService _directoryWatcher = new();
     private bool _isRefreshing;
@@ -41,7 +40,6 @@ public partial class MainWindow : Window
         string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         _navigation = new NavigationService(userProfilePath);
-        _keybinding = new KeybindingService();
         _interaction = new FileInteractionService();
 
         SidebarPanel.MyComputerItems = MyComputerItems;
@@ -53,9 +51,9 @@ public partial class MainWindow : Window
 
         InitializeSidebar();
         WireUpNavigationEvents();
-        WireUpKeybindingEvents();
         WireUpInteractionEvents();
         WireUpUIEvents();
+        WireUpZoomEvents();
 
         StatusBar.ZoomChanged += size =>
         {
@@ -152,6 +150,7 @@ public partial class MainWindow : Window
             foreach (var item in items)
                 Folders.Add(item);
 
+            FileGrid.CurrentPath = path;
             _navigation.RefreshNavState();
 
             // Start watching the current directory for external changes
@@ -208,46 +207,6 @@ public partial class MainWindow : Window
             NavToolbar.UpdateNavStates(_navigation.CanGoBack, _navigation.CanGoForward, _navigation.CanGoUp);
     }
 
-    private void WireUpKeybindingEvents()
-    {
-        _keybinding.F2Pressed += () =>
-        {
-            var selected = FindFirstSelected();
-            if (selected != null)
-            {
-                _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
-                _interaction.BeginRename(selected, FileGrid.FolderItemsControl);
-            }
-        };
-
-        _keybinding.DeletePressed += () =>
-        {
-            var selected = FindFirstSelected();
-            if (selected != null)
-            {
-                _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
-                _interaction.DeleteToTrash(selected);
-            }
-        };
-
-        _keybinding.F5Pressed += () =>
-        {
-            if (!string.IsNullOrEmpty(_navigation.CurrentPath))
-            {
-                _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
-                _navigation.NavigateTo(_navigation.CurrentPath, pushToHistory: false);
-            }
-        };
-
-        _keybinding.ZoomRequested += zoomIn =>
-        {
-            if (zoomIn)
-                StatusBar.ZoomSlider.Value = Math.Min(StatusBar.ZoomSlider.Maximum, StatusBar.ZoomSlider.Value + 1);
-            else
-                StatusBar.ZoomSlider.Value = Math.Max(StatusBar.ZoomSlider.Minimum, StatusBar.ZoomSlider.Value - 1);
-        };
-    }
-
     private void WireUpInteractionEvents()
     {
         _interaction.NavigateRequested = path => _navigation.NavigateTo(path);
@@ -258,30 +217,23 @@ public partial class MainWindow : Window
         };
     }
 
+    private void WireUpZoomEvents()
+    {
+        FileGrid.MouseWheelPreview += e =>
+        {
+            if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
+            {
+                if (e.Delta > 0)
+                    StatusBar.ZoomSlider.Value = Math.Min(StatusBar.ZoomSlider.Maximum, StatusBar.ZoomSlider.Value + 1);
+                else
+                    StatusBar.ZoomSlider.Value = Math.Max(StatusBar.ZoomSlider.Minimum, StatusBar.ZoomSlider.Value - 1);
+                e.Handled = true;
+            }
+        };
+    }
+
     private void WireUpUIEvents()
     {
-        MenuBar.DeleteRequested += () =>
-        {
-            var selected = FindFirstSelected();
-            if (selected != null)
-            {
-                _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
-                _interaction.DeleteToTrash(selected);
-            }
-        };
-
-        MenuBar.RenameRequested += () =>
-        {
-            var selected = FindFirstSelected();
-            if (selected != null)
-            {
-                _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
-                _interaction.BeginRename(selected, FileGrid.FolderItemsControl);
-            }
-        };
-
-        FileGrid.MouseWheelPreview += e => _keybinding.HandleMouseWheel(e);
-
         SidebarPanel.NavigateRequested += path => _navigation.NavigateTo(path);
 
         NavToolbar.BackRequested       += () => _navigation.GoBack();
@@ -300,8 +252,56 @@ public partial class MainWindow : Window
         };
     }
 
-    private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
-        => _keybinding.HandleKeyDown(e);
+    // --- Command Executed handlers (routed via CommandIds + Window.InputBindings) ---
+
+    private void Exit_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        Close();
+
+    private void Rename_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        var selected = FindFirstSelected();
+        if (selected != null)
+        {
+            _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
+            _interaction.BeginRename(selected, FileGrid.FolderItemsControl);
+        }
+    }
+
+    private void Delete_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        var selected = FindFirstSelected();
+        if (selected != null)
+        {
+            _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
+            _interaction.DeleteToTrash(selected);
+        }
+    }
+
+    private void Copy_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        _interaction.HandleCopy(Folders);
+
+    private void Cut_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        _interaction.HandleCut(Folders);
+
+    private void Paste_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        _interaction.HandlePaste(_navigation.CurrentPath);
+
+    private void Refresh_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (!string.IsNullOrEmpty(_navigation.CurrentPath))
+        {
+            _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
+            _navigation.NavigateTo(_navigation.CurrentPath, pushToHistory: false);
+        }
+    }
+
+    private void ZoomIn_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        StatusBar.ZoomSlider.Value = Math.Min(StatusBar.ZoomSlider.Maximum, StatusBar.ZoomSlider.Value + 1);
+
+    private void ZoomOut_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        StatusBar.ZoomSlider.Value = Math.Max(StatusBar.ZoomSlider.Minimum, StatusBar.ZoomSlider.Value - 1);
+
+    // --- Helpers ---
 
     /// <summary>
     /// Re-loads all current folder icons at the given zoom size.

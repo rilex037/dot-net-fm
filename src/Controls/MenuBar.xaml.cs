@@ -8,28 +8,16 @@ namespace dot_net_fm;
 /// Menu bar — uses native WPF Menu/MenuItem so popup lifecycle,
 /// keyboard navigation (arrows, Escape, mnemonics), and focus are
 /// handled entirely by the framework. No manual popup wrangling needed.
+///
+/// Edit menu commands are bound to <see cref="CommandIds"/> via XAML,
+/// so keyboard gesture text is never duplicated.
 /// </summary>
 public partial class MenuBar : UserControl
 {
-    /// <summary>Raised when Edit → Rename is clicked.</summary>
-    public event Action? RenameRequested;
-
-    /// <summary>Raised when Edit → Delete is clicked.</summary>
-    public event Action? DeleteRequested;
-
     public MenuBar()
     {
         InitializeComponent();
     }
-
-    private void Exit_Click(object sender, RoutedEventArgs e) =>
-        Window.GetWindow(this)?.Close();
-
-    private void Rename_Click(object sender, RoutedEventArgs e) =>
-        RenameRequested?.Invoke();
-
-    private void Delete_Click(object sender, RoutedEventArgs e) =>
-        DeleteRequested?.Invoke();
 
     private void About_Click(object sender, RoutedEventArgs e)
     {

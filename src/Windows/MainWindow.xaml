@@ -14,8 +14,40 @@
         FontFamily="Segoe UI"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
-        TextOptions.TextFormattingMode="Display"
-        PreviewKeyDown="Window_PreviewKeyDown">
+        TextOptions.TextFormattingMode="Display">
+
+    <Window.InputBindings>
+        <KeyBinding Command="{x:Static local:CommandIds.Exit}"     Key="F4"       Modifiers="Alt"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Rename}"   Key="F2"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Delete}"   Key="Delete"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Copy}"     Key="C"        Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Cut}"      Key="X"        Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Paste}"    Key="V"        Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Refresh}"  Key="F5"/>
+        <KeyBinding Command="{x:Static local:CommandIds.ZoomIn}"   Key="OemPlus"  Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.ZoomOut}"  Key="OemMinus" Modifiers="Control"/>
+    </Window.InputBindings>
+
+    <Window.CommandBindings>
+        <CommandBinding Command="{x:Static local:CommandIds.Exit}"
+                        Executed="Exit_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Rename}"
+                        Executed="Rename_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Delete}"
+                        Executed="Delete_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Copy}"
+                        Executed="Copy_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Cut}"
+                        Executed="Cut_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Paste}"
+                        Executed="Paste_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Refresh}"
+                        Executed="Refresh_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.ZoomIn}"
+                        Executed="ZoomIn_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.ZoomOut}"
+                        Executed="ZoomOut_Executed"/>
+    </Window.CommandBindings>
 
     <WindowChrome.WindowChrome>
         <WindowChrome CaptionHeight="30" GlassFrameThickness="0" CornerRadius="20" ResizeBorderThickness="6"/>
