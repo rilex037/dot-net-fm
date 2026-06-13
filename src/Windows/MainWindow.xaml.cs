@@ -1,9 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
+using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace dot_net_fm;
@@ -15,13 +18,25 @@ namespace dot_net_fm;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private readonly TabManager _tabs;
+    private const int  WM_GETMINMAXINFO        = 0x0024;
+    private const uint MONITOR_DEFAULTTONEAREST = 2u;
+
+    private readonly TabManager             _tabs;
     private readonly FileInteractionService _interaction;
-    private readonly DragDropService _dragDrop = new();
+    private readonly DragDropService        _dragDrop = new();
 
     private readonly ObservableCollection<SidebarItem.Item> _myComputerItems = new();
     private readonly ObservableCollection<SidebarItem.Item> _networkItems    = new();
     private readonly ObservableCollection<SidebarItem.Item> _bookmarkItems   = new();
+
+    private TabStore? _subscribedTab;
+    private readonly Dictionary<Guid, Action<TabStateRecord>> _tabTitleHandlers = new();
+
+    protected override void OnSourceInitialized(EventArgs e)
+    {
+        base.OnSourceInitialized(e);
+        ((HwndSource)PresentationSource.FromVisual(this)).AddHook(WndProc);
+    }
 
     public MainWindow()
     {
@@ -29,17 +44,14 @@ public partial class MainWindow : Window
 
         string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        // Compose the interaction service with all its dependencies
         _interaction = new FileInteractionService();
+        _tabs        = new TabManager(userProfilePath);
 
-        _tabs = new TabManager(userProfilePath);
-
-        // Assign sidebar collections before populating them
         SidebarPanel.MyComputerItems = _myComputerItems;
         SidebarPanel.NetworkItems    = _networkItems;
         SidebarPanel.BookmarkItems   = _bookmarkItems;
 
-        InitializeSidebar();
+        InitializeSidebar(userProfilePath); // fix: pass in rather than recompute
         WireUpSidebarAndNavEvents();
         WireUpZoomEvents();
         WireUpTabManagerEvents();
@@ -47,16 +59,13 @@ public partial class MainWindow : Window
 
         StatusBar.ZoomSlider.Value = 3;
 
-        // Create initial tab
         _tabs.AddTab();
     }
 
     // ── Sidebar initialization ─────────────────────────────────────
 
-    private void InitializeSidebar()
+    private void InitializeSidebar(string userProfilePath)
     {
-        string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-
         SidebarItem config = SidebarService.Load();
         SidebarIconMapper.Initialize(config.SidebarIcons);
 
@@ -70,6 +79,7 @@ public partial class MainWindow : Window
             {
                 string resolvedPath = SidebarService.ResolvePath(entry.Path);
                 string displayName  = entry.Name;
+
                 if (entry.Name.Equals("Home", StringComparison.OrdinalIgnoreCase) &&
                     resolvedPath.Equals(userProfilePath, StringComparison.OrdinalIgnoreCase))
                     displayName = Environment.UserName;
@@ -99,38 +109,34 @@ public partial class MainWindow : Window
     private void WireUpTabManagerEvents()
     {
         _tabs.ActiveTabChanged += OnActiveTabChanged;
-        _tabs.AllTabsClosed     += () => _tabs.AddTab();
+        _tabs.AllTabsClosed    += () => _tabs.AddTab();
+        _tabs.TabClosed += _ => RefreshTabStrip();
     }
 
     private void OnActiveTabChanged(TabStore? newTab)
     {
         if (newTab == null) return;
 
-        // Bind FileGrid to the new tab's data
-        FileGrid.Folders = newTab.Folders;
-        FileGrid.InteractionService = _interaction;
-        FileGrid.DragDropService = _dragDrop;
-        FileGrid.CurrentPath = newTab.State.ActivePath;
-        FileGrid.IconSize = newTab.State.IconSize;
+        if (_subscribedTab != null)
+            _subscribedTab.StateChanged -= OnActiveTabStateChanged;
 
-        // Sync zoom slider to the new tab's icon size
-        StatusBar.SetZoomForIconSize(newTab.State.IconSize);
-
-        // Update all UI from state
-        ApplyStateToUI(newTab.State);
-
-        // Subscribe to state changes on the new tab
+        _subscribedTab = newTab;
         newTab.StateChanged += OnActiveTabStateChanged;
 
-        // Refresh tab strip visuals
+        FileGrid.Folders            = newTab.Folders;
+        FileGrid.InteractionService = _interaction;
+        FileGrid.DragDropService    = _dragDrop;
+        FileGrid.CurrentPath        = newTab.State.ActivePath;
+        FileGrid.IconSize           = newTab.State.IconSize;
+
+        StatusBar.SetZoomForIconSize(newTab.State.IconSize);
+        ApplyStateToUI(newTab.State);
         RefreshTabStrip();
     }
 
     private void OnActiveTabStateChanged(TabStateRecord state)
     {
-        // Only update UI if this is still the active tab
         if (_tabs.ActiveTab?.State.TabId != state.TabId) return;
-
         ApplyStateToUI(state);
     }
 
@@ -141,7 +147,7 @@ public partial class MainWindow : Window
         NavToolbar.SetPath(state.DisplayPath);
         NavToolbar.UpdateNavStates(state.CanGoBack, state.CanGoForward, state.CanGoUp);
         StatusBar.SetStatus(state.StatusText);
-        FileGrid.IconSize = state.IconSize;
+        FileGrid.IconSize    = state.IconSize;
         FileGrid.CurrentPath = state.ActivePath;
     }
 
@@ -166,7 +172,6 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         };
 
-        // Wire up rename timer → textbox focus
         _interaction.RenameManager.RenameReady += item =>
         {
             _interaction.RenameManager.BeginRename(item);
@@ -189,19 +194,19 @@ public partial class MainWindow : Window
             _tabs.DispatchActive(new TabAction.NavigateTo(path));
         };
 
-        NavToolbar.BackRequested       += () =>
+        NavToolbar.BackRequested += () =>
         {
             _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.GoBack());
         };
 
-        NavToolbar.ForwardRequested    += () =>
+        NavToolbar.ForwardRequested += () =>
         {
             _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.GoForward());
         };
 
-        NavToolbar.UpRequested         += () =>
+        NavToolbar.UpRequested += () =>
         {
             _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.GoUp());
@@ -313,21 +318,15 @@ public partial class MainWindow : Window
     private void NextTab_Executed(object sender, ExecutedRoutedEventArgs e)
     {
         if (_tabs.Tabs.Count < 2) return;
-        int currentIdx = _tabs.ActiveTab != null
-            ? _tabs.Tabs.IndexOf(_tabs.ActiveTab)
-            : -1;
-        int nextIdx = (currentIdx + 1) % _tabs.Tabs.Count;
-        _tabs.SetActiveTab(nextIdx);
+        int currentIdx = _tabs.ActiveTab != null ? _tabs.Tabs.IndexOf(_tabs.ActiveTab) : -1;
+        _tabs.SetActiveTab((currentIdx + 1) % _tabs.Tabs.Count);
     }
 
     private void PrevTab_Executed(object sender, ExecutedRoutedEventArgs e)
     {
         if (_tabs.Tabs.Count < 2) return;
-        int currentIdx = _tabs.ActiveTab != null
-            ? _tabs.Tabs.IndexOf(_tabs.ActiveTab)
-            : -1;
-        int prevIdx = (currentIdx - 1 + _tabs.Tabs.Count) % _tabs.Tabs.Count;
-        _tabs.SetActiveTab(prevIdx);
+        int currentIdx = _tabs.ActiveTab != null ? _tabs.Tabs.IndexOf(_tabs.ActiveTab) : -1;
+        _tabs.SetActiveTab((currentIdx - 1 + _tabs.Tabs.Count) % _tabs.Tabs.Count);
     }
 
     // ── Tab strip UI ───────────────────────────────────────────────
@@ -335,93 +334,135 @@ public partial class MainWindow : Window
     private void AddTabButton_Click(object sender, RoutedEventArgs e) =>
         _tabs.AddTab();
 
-    private void TabButton_Click(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is FrameworkElement fe && fe.Tag is Guid tabId)
-            _tabs.SetActiveTab(tabId);
-    }
-
-    private void TabCloseButton_Click(object sender, RoutedEventArgs e)
-    {
-        if (sender is FrameworkElement fe && fe.Tag is Guid tabId)
-            _tabs.CloseTab(tabId);
-    }
-
     private void RefreshTabStrip()
     {
+        foreach (var (tabId, handler) in _tabTitleHandlers)
+        {
+            var store = _tabs.Tabs.FirstOrDefault(t => t.State.TabId == tabId);
+            if (store != null)
+                store.StateChanged -= handler;
+        }
+        _tabTitleHandlers.Clear();
         TabStripPanel.Children.Clear();
 
         foreach (var store in _tabs.Tabs)
         {
-            var tabId = store.State.TabId;
+            var  tabId    = store.State.TabId;
             bool isActive = _tabs.ActiveTab?.State.TabId == tabId;
 
             var titleBlock = new TextBlock
             {
-                Text            = store.State.Title,
+                Text              = store.State.Title,
                 VerticalAlignment = VerticalAlignment.Center,
-                FontSize        = (double)FindResource("FontTabTitleSize"),
-                Foreground      = (Brush)FindResource("TextPrimaryBrush"),
-                MinWidth        = 40,
-                MaxWidth        = 150,
-                TextTrimming    = TextTrimming.CharacterEllipsis,
-                Margin          = new Thickness(0, 0, 4, 0)
+                FontSize          = (double)FindResource("FontTabTitleSize"),
+                Foreground        = (Brush)FindResource("TextPrimaryBrush"),
+                MinWidth          = 40,
+                MaxWidth          = 150,
+                TextTrimming      = TextTrimming.CharacterEllipsis,
+                Margin            = new Thickness(0, 0, 4, 0),
             };
 
             var closeButton = new Button
             {
-                Content         = "×",
-                Width           = 16,
-                Height          = 16,
-                FontSize        = (double)FindResource("FontTabCloseSize"),
-                Background      = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Foreground      = (Brush)FindResource("TextSecondaryBrush"),
-                Cursor          = Cursors.Hand,
-                Focusable       = false,
+                Content           = "×",
+                Width             = 16,
+                Height            = 16,
+                FontSize          = (double)FindResource("FontTabCloseSize"),
+                Background        = Brushes.Transparent,
+                BorderThickness   = new Thickness(0),
+                Foreground        = (Brush)FindResource("TextSecondaryBrush"),
+                Cursor            = Cursors.Hand,
+                Focusable         = false,
                 VerticalAlignment = VerticalAlignment.Center,
-                Tag             = tabId
+                Tag               = tabId,
             };
-            closeButton.Click += (s, e) => _tabs.CloseTab(tabId);
+            closeButton.Click += (_, _) => _tabs.CloseTab(tabId);
 
             var stack = new StackPanel
             {
-                Orientation      = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center
+                Orientation       = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center,
             };
             stack.Children.Add(titleBlock);
             stack.Children.Add(closeButton);
 
             var border = new Border
             {
-                Padding    = new Thickness(8, 0, 4, 0),
-                Height     = 24,
-                Cursor     = Cursors.Hand,
+                Padding      = new Thickness(8, 0, 4, 0),
+                Height       = 24,
+                Cursor       = Cursors.Hand,
                 CornerRadius = new CornerRadius(4, 4, 0, 0),
-                Margin     = new Thickness(1, 0, 0, 0),
-                Background = isActive
+                Margin       = new Thickness(1, 0, 0, 0),
+                Background   = isActive
                     ? (Brush)FindResource("SidebarBrush")
                     : Brushes.Transparent,
-                Child      = stack,
-                Tag        = tabId
+                Child        = stack,
+                Tag          = tabId,
             };
-            border.MouseLeftButtonDown += (s, e) =>
-            {
-                if (s is FrameworkElement fe && fe.Tag is Guid id)
-                    _tabs.SetActiveTab(id);
-            };
+            border.MouseLeftButtonDown += (_, _) => _tabs.SetActiveTab(tabId);
 
-            // Subscribe to title changes for this tab
-            var capturedTitle = titleBlock;
-            var capturedTabId = tabId;
-            store.StateChanged += s =>
+            void TitleHandler(TabStateRecord s)
             {
-                if (s.TabId == capturedTabId)
-                    capturedTitle.Text = s.Title;
-            };
+                if (s.TabId == tabId) titleBlock.Text = s.Title;
+            }
+            _tabTitleHandlers[tabId] = TitleHandler;
+            store.StateChanged += TitleHandler;
 
             TabStripPanel.Children.Add(border);
         }
+    }
+
+    // ── WndProc: clamp maximized size to per-monitor work area ─────
+
+    private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+    {
+        if (msg == WM_GETMINMAXINFO)
+        {
+            var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+
+            IntPtr hMonitor   = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            var    monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            if (GetMonitorInfo(hMonitor, ref monitorInfo))
+            {
+                var rc = monitorInfo.rcWork;
+                mmi.ptMaxPosition.x = rc.Left;
+                mmi.ptMaxPosition.y = rc.Top;
+                mmi.ptMaxSize.x     = rc.Right  - rc.Left;
+                mmi.ptMaxSize.y     = rc.Bottom - rc.Top;
+                Marshal.StructureToPtr(mmi, lParam, true);
+                handled = true;
+            }
+        }
+        return IntPtr.Zero;
+    }
+
+    // ── Win32 interop for per-monitor work area ───────────────────
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
+
+    [DllImport("user32.dll", CharSet = CharSet.Auto)]
+    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT { public int x, y; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct RECT { public int Left, Top, Right, Bottom; }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MINMAXINFO
+    {
+        public POINT ptReserved, ptMaxSize, ptMaxPosition, ptMinTrackSize, ptMaxTrackSize;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct MONITORINFO
+    {
+        public int  cbSize;
+        public RECT rcMonitor;
+        public RECT rcWork;
+        public uint dwFlags;
     }
 
     // ── Helpers ────────────────────────────────────────────────────
@@ -429,7 +470,6 @@ public partial class MainWindow : Window
     private FolderItem? FindFirstSelected()
     {
         if (_tabs.ActiveTab == null) return null;
-
         foreach (var item in _tabs.ActiveTab.Folders)
             if (item.IsSelected) return item;
         return null;

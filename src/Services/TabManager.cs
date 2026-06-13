@@ -22,6 +22,9 @@ public sealed class TabManager
     /// <summary>Fired when the active tab changes (tab selected, tab closed, etc.).</summary>
     public event Action<TabStore?>? ActiveTabChanged;
 
+    /// <summary>Fired when a tab is closed.</summary>
+    public event Action<Guid>? TabClosed;
+
     /// <summary>Fired when the last tab is closed.</summary>
     public event Action? AllTabsClosed;
 
@@ -80,6 +83,9 @@ public sealed class TabManager
                 AllTabsClosed?.Invoke();
             }
         }
+
+        // Fire event so MainWindow can synchronize the tab strip UI
+        TabClosed?.Invoke(tabId);
 
         return true;
     }
