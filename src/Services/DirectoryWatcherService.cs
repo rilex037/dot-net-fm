@@ -13,11 +13,20 @@ namespace dot_net_fm;
 public sealed class DirectoryWatcherService : IDisposable
 {
     private FileSystemWatcher? _watcher;
-    private DispatcherTimer? _debounceTimer;
+    private readonly DispatcherTimer _debounceTimer;
     private bool _disposed;
 
     /// <summary>Fired on file system changes in the watched directory (debounced).</summary>
     public event Action? DirectoryChanged;
+
+    public DirectoryWatcherService()
+    {
+        _debounceTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(300)
+        };
+        _debounceTimer.Tick += OnDebounceTick;
+    }
 
     /// <summary>Starts watching the given directory path. Stops any previous watch.</summary>
     public void Watch(string path)
@@ -42,8 +51,7 @@ public sealed class DirectoryWatcherService : IDisposable
         _watcher?.Dispose();
         _watcher = null;
 
-        _debounceTimer?.Stop();
-        _debounceTimer = null;
+        _debounceTimer.Stop();
     }
 
     private void OnChanged(object sender, FileSystemEventArgs e)
@@ -60,18 +68,14 @@ public sealed class DirectoryWatcherService : IDisposable
 
     private void DebounceNotify()
     {
-        _debounceTimer?.Stop();
-
-        _debounceTimer = new DispatcherTimer(
-            TimeSpan.FromMilliseconds(300),
-            DispatcherPriority.Normal,
-            (_, _) =>
-            {
-                _debounceTimer?.Stop();
-                DirectoryChanged?.Invoke();
-            },
-            Application.Current.Dispatcher);
+        _debounceTimer.Stop();
         _debounceTimer.Start();
+    }
+
+    private void OnDebounceTick(object? sender, EventArgs e)
+    {
+        _debounceTimer.Stop();
+        DirectoryChanged?.Invoke();
     }
 
     public void Dispose()

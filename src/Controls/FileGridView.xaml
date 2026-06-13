@@ -26,12 +26,13 @@
         </Style>
 
         <Style TargetType="ScrollBar">
+            <Setter Property="MinWidth" Value="0"/>
             <Setter Property="Width" Value="{StaticResource SizeScrollBarWidth}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ScrollBar">
-                        <Grid x:Name="Bg" Background="Transparent">
+                        <Grid x:Name="Bg" Background="Transparent" ClipToBounds="True" Width="{TemplateBinding Width}">
                             <Track x:Name="PART_Track" IsDirectionReversed="True" IsEnabled="{TemplateBinding IsEnabled}">
                                 <Track.DecreaseRepeatButton>
                                     <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False" />
@@ -68,6 +69,7 @@
                       VerticalScrollBarVisibility="Auto"
                       HorizontalScrollBarVisibility="Disabled"
                       Background="Transparent"
+                      Margin="0,0,5,0"
                       PreviewMouseWheel="FileScrollViewer_PreviewMouseWheel">
 
             <ItemsControl x:Name="FolderItemsControl" Margin="{StaticResource SpacingContentMargin}"
@@ -125,8 +127,7 @@
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
                                            LineHeight="14"
-                                           TextWrapping="Wrap"
-                                           MouseLeftButtonDown="NameText_MouseLeftButtonDown">
+                                           TextWrapping="Wrap">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
                                             <Setter Property="Visibility" Value="Visible"/>

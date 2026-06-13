@@ -81,9 +81,6 @@ public partial class FileGridView : UserControl
 
     private void ItemBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        if (e.OriginalSource is TextBlock)
-            return;
-
         if (sender is not FrameworkElement element || element.DataContext is not FolderItem folderItem)
             return;
 
@@ -93,23 +90,9 @@ public partial class FileGridView : UserControl
             return;
         }
 
-        HandleItemClick(folderItem, isNameClick: false);
-        DragDropService?.ArmDrag(e.GetPosition(null));
-        e.Handled = true;
-    }
+        bool isNameClick = e.OriginalSource is TextBlock;
 
-    private void NameText_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-    {
-        if (sender is not FrameworkElement element || element.DataContext is not FolderItem folderItem)
-            return;
-
-        if (folderItem.IsEditing)
-        {
-            e.Handled = true;
-            return;
-        }
-
-        HandleItemClick(folderItem, isNameClick: true);
+        HandleItemClick(folderItem, isNameClick);
         DragDropService?.ArmDrag(e.GetPosition(null));
         e.Handled = true;
     }

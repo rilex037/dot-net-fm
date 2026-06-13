@@ -154,10 +154,6 @@ public sealed class TabStore : IDisposable
 
         StateChanged?.Invoke(_state);
 
-        GC.Collect(2, GCCollectionMode.Forced, blocking: true);
-        GC.WaitForPendingFinalizers();
-        GC.Collect(2, GCCollectionMode.Forced, blocking: true);
-
         _ = LoadIconsBatchedAsync(a.Items);
     }
 

@@ -5,7 +5,7 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:dot_net_fm"
         mc:Ignorable="d"
-        Title="Home" Height="768" Width="1366"
+        Title="Home" Height="768" Width="1024"
         WindowStyle="None"
         WindowState="Normal"
         ResizeMode="CanResize"
