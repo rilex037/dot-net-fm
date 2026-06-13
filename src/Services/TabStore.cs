@@ -115,13 +115,6 @@ public sealed class TabStore : IDisposable
         StateChanged?.Invoke(_state);
     }
 
-    // ── Pre-navigation hook for UI concerns ────────────────────────
-
-    public void CommitPendingRename(FileInteractionService interaction, ItemsControl itemsControl)
-    {
-        interaction.CommitActiveRename(_folders, itemsControl);
-    }
-
     // ── Internal: async directory loading ──────────────────────────
 
     private async void OnNavigationDirectoryLoaded(string path)

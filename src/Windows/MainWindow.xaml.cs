@@ -16,7 +16,7 @@ namespace dot_net_fm;
 public partial class MainWindow : Window
 {
     private readonly TabManager _tabs;
-    private readonly FileInteractionService _interaction = new();
+    private readonly FileInteractionService _interaction;
     private readonly DragDropService _dragDrop = new();
 
     private readonly ObservableCollection<SidebarItem.Item> _myComputerItems = new();
@@ -28,6 +28,9 @@ public partial class MainWindow : Window
         InitializeComponent();
 
         string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        // Compose the interaction service with all its dependencies
+        _interaction = new FileInteractionService();
 
         _tabs = new TabManager(userProfilePath);
 
@@ -103,9 +106,6 @@ public partial class MainWindow : Window
     {
         if (newTab == null) return;
 
-        // Unsubscribe from previous tab
-        // (not needed since we re-subscribe below)
-
         // Bind FileGrid to the new tab's data
         FileGrid.Folders = newTab.Folders;
         FileGrid.InteractionService = _interaction;
@@ -151,7 +151,7 @@ public partial class MainWindow : Window
     {
         _interaction.NavigateRequested = path =>
         {
-            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.NavigateTo(path));
         };
 
@@ -160,9 +160,22 @@ public partial class MainWindow : Window
             ShellContextMenuService.Show(this, screenPos, selectedPaths);
         };
 
+        _interaction.ErrorDisplayRequested = message =>
+        {
+            MessageBox.Show(message, "Error",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+        };
+
+        // Wire up rename timer → textbox focus
+        _interaction.RenameManager.RenameReady += item =>
+        {
+            _interaction.RenameManager.BeginRename(item);
+            FileGrid.FocusRenameTextBox(item);
+        };
+
         _dragDrop.TransferRequested = (paths, targetDir, forceCopy) =>
         {
-            _interaction.TransferFiles(paths, targetDir, forceCopy);
+            _interaction.FileOperations.TransferFiles(paths, targetDir, forceCopy);
         };
     }
 
@@ -172,25 +185,25 @@ public partial class MainWindow : Window
     {
         SidebarPanel.NavigateRequested += path =>
         {
-            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.NavigateTo(path));
         };
 
         NavToolbar.BackRequested       += () =>
         {
-            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.GoBack());
         };
 
         NavToolbar.ForwardRequested    += () =>
         {
-            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.GoForward());
         };
 
         NavToolbar.UpRequested         += () =>
         {
-            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.GoUp());
         };
 
@@ -202,7 +215,7 @@ public partial class MainWindow : Window
             if (target.Equals("my computer", StringComparison.OrdinalIgnoreCase))
                 target = NavigationService.MyComputerPath;
 
-            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.NavigateTo(target));
         };
     }
@@ -240,8 +253,9 @@ public partial class MainWindow : Window
         var selected = FindFirstSelected();
         if (selected != null)
         {
-            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
-            _interaction.BeginRename(selected, FileGrid.FolderItemsControl);
+            _tabs.CommitActiveRename(FileGrid);
+            _interaction.BeginRename(selected);
+            FileGrid.FocusRenameTextBox(selected);
         }
     }
 
@@ -250,7 +264,7 @@ public partial class MainWindow : Window
         var selected = FindFirstSelected();
         if (selected != null)
         {
-            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.CommitActiveRename(FileGrid);
             _interaction.DeleteToTrash(selected);
         }
     }
@@ -275,7 +289,7 @@ public partial class MainWindow : Window
 
     private void Refresh_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+        _tabs.CommitActiveRename(FileGrid);
         _tabs.DispatchActive(new TabAction.BeginRefresh());
     }
 

@@ -127,11 +127,11 @@ public sealed class TabManager
 
     /// <summary>
     /// Commits pending renames on the active tab before a navigation.
-    /// Convenience wrapper around <see cref="TabStore.CommitPendingRename"/>.
+    /// Delegates to <see cref="FileGridView.CommitAnyRename"/>.
     /// </summary>
-    public void CommitActiveRename(FileInteractionService interaction, System.Windows.Controls.ItemsControl itemsControl)
+    public void CommitActiveRename(FileGridView grid)
     {
-        ActiveTab?.CommitPendingRename(interaction, itemsControl);
+        grid.CommitAnyRename();
     }
 
     // ── Lookup ────────────────────────────────────────────────────

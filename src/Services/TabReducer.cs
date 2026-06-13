@@ -4,8 +4,10 @@ using System.IO;
 namespace dot_net_fm;
 
 /// <summary>
-/// Pure function that produces a new <see cref="TabStateRecord"/> from the
-/// current state and an action. No side effects, no mutation.
+///     Pure-function reducer that takes current TabStateRecord + TabAction
+///     and returns the next state via with expressions.
+///     Handles: navigation (NavigateTo, GoBack/Forward/Up), directory loaded,
+///     refresh, icon size, internal sync (title, status, nav state), fallback.
 /// </summary>
 public static class TabReducer
 {

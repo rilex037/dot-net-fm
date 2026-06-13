@@ -1,6 +1,4 @@
 using System;
-using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Threading;
 
 namespace dot_net_fm;
@@ -8,15 +6,18 @@ namespace dot_net_fm;
 /// <summary>
 /// Encapsulates the slow-double-click-to-rename interaction:
 /// debounce timer, active editing item tracking, and rename state.
+/// No visual tree dependencies — the caller handles TextBox focus/selection.
 /// </summary>
 public sealed class RenameManager
 {
     private readonly DispatcherTimer _timer;
     private FolderItem? _pendingItem;
-    private ItemsControl? _pendingItemsControl;
 
     /// <summary>The item currently in rename mode, or null.</summary>
     public FolderItem? ActiveEditingItem { get; private set; }
+
+    /// <summary>Fired when the debounce timer expires and rename should begin on the pending item.</summary>
+    public event Action<FolderItem>? RenameReady;
 
     public RenameManager()
     {
@@ -26,13 +27,12 @@ public sealed class RenameManager
 
     /// <summary>
     /// Starts the debounce timer for the given item. If the timer expires
-    /// while the item is still selected, rename begins.
+    /// while the item is still selected, <see cref="RenameReady"/> fires.
     /// </summary>
-    public void StartPending(FolderItem item, ItemsControl itemsControl)
+    public void StartPending(FolderItem item)
     {
         CancelPending();
         _pendingItem = item;
-        _pendingItemsControl = itemsControl;
         _timer.Start();
     }
 
@@ -41,38 +41,18 @@ public sealed class RenameManager
     {
         _timer.Stop();
         _pendingItem = null;
-        _pendingItemsControl = null;
     }
 
     /// <summary>Enters rename mode on the given item.</summary>
-    public void BeginRename(FolderItem item, ItemsControl? itemsControl)
+    public void BeginRename(FolderItem item)
     {
         ActiveEditingItem = item;
         item.EditName = item.Name;
         item.IsEditing = true;
-
-        Application.Current.Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
-        {
-            var container = itemsControl?.ItemContainerGenerator.ContainerFromItem(item) as ContentPresenter;
-            var textBox = container != null ? FindDescendant<TextBox>(container) : null;
-            if (textBox != null)
-            {
-                textBox.Focus();
-                if (!item.IsFolder)
-                {
-                    int nameLen = System.IO.Path.GetFileNameWithoutExtension(item.Name).Length;
-                    textBox.Select(0, nameLen);
-                }
-                else
-                {
-                    textBox.SelectAll();
-                }
-            }
-        });
     }
 
-    /// <summary>Commits the rename on the active item using the provided commit callback.</summary>
-    public bool CommitActive(ItemsControl? itemsControl, Action<TextBox, FolderItem> commitCallback)
+    /// <summary>Commits the rename using the provided callback if an item is actively editing.</summary>
+    public bool CommitActive(Action<FolderItem>? onCommitted)
     {
         if (ActiveEditingItem == null || !ActiveEditingItem.IsEditing)
         {
@@ -80,14 +60,7 @@ public sealed class RenameManager
             return false;
         }
 
-        var container = itemsControl?.ItemContainerGenerator.ContainerFromItem(ActiveEditingItem) as ContentPresenter;
-        var textBox = container != null ? FindDescendant<TextBox>(container) : null;
-
-        if (textBox != null)
-            commitCallback(textBox, ActiveEditingItem);
-        else
-            ActiveEditingItem.IsEditing = false;
-
+        onCommitted?.Invoke(ActiveEditingItem);
         ClearActive();
         return true;
     }
@@ -106,26 +79,11 @@ public sealed class RenameManager
     {
         _timer.Stop();
 
-        if (_pendingItem != null && _pendingItem.IsSelected && _pendingItemsControl != null)
+        if (_pendingItem != null && _pendingItem.IsSelected)
         {
-            BeginRename(_pendingItem, _pendingItemsControl);
+            RenameReady?.Invoke(_pendingItem);
         }
 
         _pendingItem = null;
-        _pendingItemsControl = null;
-    }
-
-    private static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
-    {
-        for (int i = 0; i < System.Windows.Media.VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var child = System.Windows.Media.VisualTreeHelper.GetChild(parent, i);
-            if (child is T match)
-                return match;
-            var result = FindDescendant<T>(child);
-            if (result != null)
-                return result;
-        }
-        return null;
     }
 }

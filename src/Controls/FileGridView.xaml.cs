@@ -2,15 +2,19 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
+using System.Windows.Threading;
 
 namespace dot_net_fm;
 
 /// <summary>
 /// Grid view for displaying files and folders with interaction handling.
-/// Layout sizing is handled natively via XAML Data Binding.
+/// Owns all visual-tree concerns (rubber band rect rendering, TextBox focus, hit-testing).
+/// Delegates logic to <see cref="FileInteractionService"/> which composes pure services.
 /// </summary>
 public partial class FileGridView : UserControl
 {
@@ -24,7 +28,7 @@ public partial class FileGridView : UserControl
         DependencyProperty.Register(nameof(DragDropService), typeof(DragDropService), typeof(FileGridView));
 
     public static readonly DependencyProperty IconSizeProperty =
-        DependencyProperty.Register(nameof(IconSize), typeof(int), typeof(FileGridView), 
+        DependencyProperty.Register(nameof(IconSize), typeof(int), typeof(FileGridView),
             new PropertyMetadata(64));
 
     public IEnumerable? Folders
@@ -61,14 +65,22 @@ public partial class FileGridView : UserControl
         set => SetValue(CurrentPathProperty, value);
     }
 
+    // ── Rubber band state ─────────────────────────────────────────
+
+    private bool _isRubberBanding;
+    private Point _rubberBandStart;
+
+    // ── Constructor ───────────────────────────────────────────────
+
     public FileGridView()
     {
         InitializeComponent();
     }
 
+    // ── Item click handling ───────────────────────────────────────
+
     private void ItemBorder_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-
         if (e.OriginalSource is TextBlock)
             return;
 
@@ -81,7 +93,7 @@ public partial class FileGridView : UserControl
             return;
         }
 
-        InteractionService?.HandleIconMouseDown(folderItem, FolderItemsControl, e);
+        HandleItemClick(folderItem, isNameClick: false);
         DragDropService?.ArmDrag(e.GetPosition(null));
         e.Handled = true;
     }
@@ -97,28 +109,40 @@ public partial class FileGridView : UserControl
             return;
         }
 
-        InteractionService?.HandleNameMouseDown(folderItem, FolderItemsControl, e);
+        HandleItemClick(folderItem, isNameClick: true);
         DragDropService?.ArmDrag(e.GetPosition(null));
         e.Handled = true;
     }
 
+    private void HandleItemClick(FolderItem clickedItem, bool isNameClick)
+    {
+        if (InteractionService == null) return;
+
+        InteractionService.HandleItemMouseDown(clickedItem, isNameClick, folders =>
+        {
+            ClearAllSelections();
+        });
+    }
+
+    // ── Rename textbox events ─────────────────────────────────────
+
     private void RenameBox_KeyDown(object sender, KeyEventArgs e)
     {
-        if (sender is TextBox textBox && textBox.DataContext is FolderItem item)
+        if (sender is TextBox textBox && textBox.DataContext is FolderItem item && InteractionService != null)
         {
-            InteractionService?.HandleRenameKeyDown(e, textBox, item);
+            InteractionService.HandleRenameKey(item, textBox.Text, e.Key);
         }
     }
 
     private void RenameBox_LostFocus(object sender, RoutedEventArgs e)
     {
-        if (sender is TextBox textBox && textBox.DataContext is FolderItem item)
+        if (sender is TextBox textBox && textBox.DataContext is FolderItem item && InteractionService != null)
         {
-            InteractionService?.CommitRename(textBox, item);
+            InteractionService.FinalizeRename(item, textBox.Text);
         }
     }
 
-    // --- Rubber band selection ---
+    // ── Rubber band selection ─────────────────────────────────────
 
     private void FileView_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
@@ -132,72 +156,98 @@ public partial class FileGridView : UserControl
 
         if (InteractionService == null) return;
 
-        if (InteractionService.IsClickOnItem(e, FolderItemsControl))
+        var hitItem = VisualTreeUtility.GetFolderItemAtPoint(FolderItemsControl, e.GetPosition(FolderItemsControl));
+        if (hitItem != null)
         {
-            var hitItem = InteractionService.GetItemAtPosition(e, FolderItemsControl);
-            if (hitItem != null && hitItem.IsEditing)
+            if (hitItem.IsEditing)
                 return;
 
             Focus();
+            CommitAnyRename();
+            return;
+        }
 
-        var folders = Folders as IEnumerable<FolderItem> ?? Enumerable.Empty<FolderItem>();
-        InteractionService.CommitActiveRename(folders, FolderItemsControl);
-        return;
-    }
+        Focus();
+        CommitAnyRename();
+        ClearAllSelections();
 
-    Focus();
+        _rubberBandStart = e.GetPosition(SelectionCanvas);
+        _isRubberBanding = false;
 
-    var allFolders = Folders as IEnumerable<FolderItem> ?? Enumerable.Empty<FolderItem>();
-    InteractionService.CommitActiveRename(allFolders, FolderItemsControl);
-    InteractionService.ClearAllSelections(allFolders);
-
-        var pos = e.GetPosition(SelectionCanvas);
-        InteractionService.HandleRubberBandMouseDown(pos, SelectionCanvas, SelectionBorder);
+        SelectionCanvas.CaptureMouse();
+        SelectionBorder.Visibility = Visibility.Collapsed;
     }
 
     private void FileView_PreviewMouseMove(object sender, MouseEventArgs e)
     {
         if (InteractionService == null) return;
 
-        if (Folders is IEnumerable<FolderItem> typedFolders)
+        var typedFolders = Folders as IEnumerable<FolderItem>;
+        if (typedFolders != null)
             DragDropService?.UpdateDrag(this, typedFolders);
 
-        var pos = e.GetPosition(SelectionCanvas);
-        InteractionService.HandleRubberBandMouseMove(pos, SelectionCanvas, SelectionBorder);
+        if (Mouse.Captured != SelectionCanvas) return;
 
-        if (InteractionService.IsRubberBanding && Folders is IEnumerable<FolderItem> selectFolders)
+        var current = e.GetPosition(SelectionCanvas);
+
+        if (!_isRubberBanding)
         {
-            InteractionService.UpdateRubberBandSelection(selectFolders, FolderItemsControl, SelectionCanvas, SelectionBorder);
+            if (RubberBandHelper.IsBeyondThreshold(_rubberBandStart, current))
+            {
+                _isRubberBanding = true;
+                SelectionBorder.Visibility = Visibility.Visible;
+            }
+        }
+
+        if (!_isRubberBanding) return;
+
+        var rect = RubberBandHelper.ComputeSelectionRect(_rubberBandStart, current);
+
+        Canvas.SetLeft(SelectionBorder, rect.X);
+        Canvas.SetTop(SelectionBorder, rect.Y);
+        SelectionBorder.Width = rect.Width;
+        SelectionBorder.Height = rect.Height;
+
+        if (typedFolders != null)
+        {
+            RubberBandHelper.ApplySelection(typedFolders, rect, item =>
+            {
+                var container = FolderItemsControl.ItemContainerGenerator.ContainerFromItem(item) as ContentPresenter;
+                if (container == null) return null;
+                var topLeft = container.TranslatePoint(new Point(0, 0), SelectionCanvas);
+                return new Rect(topLeft, new Size(container.ActualWidth, container.ActualHeight));
+            });
         }
     }
 
     private void FileView_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        InteractionService?.HandleRubberBandMouseUp(SelectionCanvas, SelectionBorder);
+        if (Mouse.Captured != SelectionCanvas) return;
+
+        SelectionCanvas.ReleaseMouseCapture();
+        SelectionBorder.Visibility = Visibility.Collapsed;
+        _isRubberBanding = false;
     }
 
-    /// <summary>
-    /// Handles right-click: shows native shell context menu for selected items.
-    /// If clicking on an unselected item, selects it first.
-    /// </summary>
+    // ── Right-click context menu ──────────────────────────────────
+
     private void FileView_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
         if (InteractionService == null) return;
 
-        var clickedItem = InteractionService.GetItemAtPosition(e, FolderItemsControl);
+        var hitItem = VisualTreeUtility.GetFolderItemAtPoint(FolderItemsControl, e.GetPosition(FolderItemsControl));
+        var typedFolders = Folders as IEnumerable<FolderItem>;
 
-        if (clickedItem != null && Folders is IEnumerable<FolderItem> rightFolders)
+        if (hitItem != null && typedFolders != null)
         {
-            // If the clicked item is not part of the current selection, select only it
-            if (!clickedItem.IsSelected)
+            if (!hitItem.IsSelected)
             {
-                InteractionService.ClearAllSelections(rightFolders);
-                clickedItem.IsSelected = true;
+                ClearAllSelections();
+                hitItem.IsSelected = true;
             }
 
-            // Collect all selected item paths
             var selectedPaths = new List<string>();
-            foreach (var item in rightFolders)
+            foreach (var item in typedFolders)
             {
                 if (item.IsSelected)
                     selectedPaths.Add(item.FullPath);
@@ -205,18 +255,70 @@ public partial class FileGridView : UserControl
 
             if (selectedPaths.Count > 0)
             {
-                // Get screen position for the context menu
                 var screenPos = PointToScreen(e.GetPosition(this));
                 InteractionService.ContextMenuRequested?.Invoke(screenPos, selectedPaths);
             }
         }
-        else
+    }
+
+    // ── Rename commit helpers ─────────────────────────────────────
+
+    /// <summary>
+    /// Commits the active rename if one exists, locating the TextBox from the active editing item.
+    /// </summary>
+    public void CommitAnyRename()
+    {
+        if (InteractionService == null) return;
+
+        InteractionService.CommitPendingRename(
+            clearAllSelections: folders => ClearAllSelections(),
+            onCommitted: item =>
+            {
+                var container = FolderItemsControl.ItemContainerGenerator.ContainerFromItem(item) as ContentPresenter;
+                var textBox = container != null ? VisualTreeUtility.FindDescendant<TextBox>(container) : null;
+                if (textBox != null)
+                    InteractionService?.FinalizeRename(item, textBox.Text);
+            });
+    }
+
+    /// <summary>
+    /// Begins rename on the given item, focusing the TextBox and selecting the appropriate text.
+    /// Should be called after the rename mode has been set on the item.
+    /// </summary>
+    public void FocusRenameTextBox(FolderItem item)
+    {
+        Application.Current.Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
         {
-            // Right-click on empty space: show context menu for the folder itself
-            // (optional — could be used for "New > Folder" etc.)
-            // For now, do nothing on empty space right-click.
+            var container = FolderItemsControl.ItemContainerGenerator.ContainerFromItem(item) as ContentPresenter;
+            var textBox = container != null ? VisualTreeUtility.FindDescendant<TextBox>(container) : null;
+            if (textBox != null)
+            {
+                textBox.Focus();
+                if (!item.IsFolder)
+                {
+                    int nameLen = System.IO.Path.GetFileNameWithoutExtension(item.Name).Length;
+                    textBox.Select(0, nameLen);
+                }
+                else
+                {
+                    textBox.SelectAll();
+                }
+            }
+        });
+    }
+
+    // ── Selection helpers ─────────────────────────────────────────
+
+    public void ClearAllSelections()
+    {
+        if (Folders is IEnumerable<FolderItem> folders)
+        {
+            foreach (var item in folders)
+                item.IsSelected = false;
         }
     }
+
+    // ── Mouse wheel / zoom ────────────────────────────────────────
 
     public event Action<MouseWheelEventArgs>? MouseWheelPreview;
 
@@ -231,6 +333,8 @@ public partial class FileGridView : UserControl
         }
     }
 
+    // ── Drag and drop ─────────────────────────────────────────────
+
     private void FileView_DragOver(object sender, DragEventArgs e)
     {
         DragDropService?.HandleDragOver(e);
@@ -241,10 +345,9 @@ public partial class FileGridView : UserControl
         if (DragDropService == null || InteractionService == null) return;
 
         var pos = e.GetPosition(FolderItemsControl);
-        var hitItem = InteractionService.GetItemAtPoint(pos, FolderItemsControl);
+        var hitItem = VisualTreeUtility.GetFolderItemAtPoint(FolderItemsControl, pos);
         string targetDir = (hitItem != null && hitItem.IsFolder) ? hitItem.FullPath : CurrentPath;
 
         DragDropService.HandleDrop(e, targetDir);
     }
-
 }

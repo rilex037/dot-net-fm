@@ -1,139 +1,111 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
-using System.IO;
-using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Controls;
-using System.Windows.Input;
-using System.Windows.Media;
-using System.Collections.Specialized;
-using Microsoft.VisualBasic.FileIO;
 
 namespace dot_net_fm;
 
 /// <summary>
-/// Handles all file/folder item interactions:
-/// click selection, slow double-click rename, fast double-click open,
-/// rubber band selection, clipboard, and file operations.
-/// Rename timer logic is delegated to <see cref="RenameManager"/>.
-/// Drag & drop is handled by <see cref="DragDropService"/>.
+/// Coordinates file interaction logic by composing pure, testable services.
+/// No WPF UI types (ItemsControl, TextBox, Canvas, Border) are accepted —
+/// all visual-tree work is the caller's responsibility.
+/// Handles: click → rename/open dispatch, clipboard operations, delete, file transfer.
 /// </summary>
-public class FileInteractionService
+public sealed class FileInteractionService
 {
-    [DllImport("user32.dll")]
-    private static extern uint GetDoubleClickTime();
+    private readonly ClickTracker _clickTracker;
+    private readonly RenameManager _renameManager;
+    private readonly FileOperationService _fileOps;
+    private readonly ProcessLaunchService _processLauncher;
+    private readonly ClipboardService _clipboard;
 
-    // Double-click tracking
-    private FolderItem? _lastClickedItem;
-    private int _lastClickTick;
-
-    // Rubber band selection state
-    private bool _isRubberBanding;
-    private Point _rubberBandStart;
-
-    // Rename state — delegated to RenameManager
-    private readonly RenameManager _rename = new();
-
-    // Clipboard state — system clipboard is the source of truth for paths;
-    // this flag tracks whether the last operation was cut (move) or copy.
-    private bool _clipboardIsCut;
+    // ── Events (set by MainWindow) ────────────────────────────────
 
     public Action<string>? NavigateRequested;
-    public Action<string>? FileLaunchRequested;
     public Action<Point, List<string>>? ContextMenuRequested;
+    /// <summary>Called when the UI should display an error message.</summary>
+    public Action<string>? ErrorDisplayRequested;
 
-    // ──────────────────────────────── Selection ────────────────────────────
+    // ── Construction ───────────────────────────────────────────────
+
+    public FileInteractionService(
+        ClickTracker? clickTracker = null,
+        RenameManager? renameManager = null,
+        FileOperationService? fileOps = null,
+        ProcessLaunchService? processLauncher = null,
+        ClipboardService? clipboard = null)
+    {
+        _clickTracker = clickTracker ?? new ClickTracker();
+        _renameManager = renameManager ?? new RenameManager();
+        _fileOps = fileOps ?? new FileOperationService();
+        _processLauncher = processLauncher ?? new ProcessLaunchService();
+        _clipboard = clipboard ?? new ClipboardService();
+    }
+
+    // ── Public access to composed services ────────────────────────
+
+    public ClickTracker ClickTracker => _clickTracker;
+    public RenameManager RenameManager => _renameManager;
+    public FileOperationService FileOperations => _fileOps;
+    public ProcessLaunchService ProcessLauncher => _processLauncher;
+    public ClipboardService Clipboard => _clipboard;
+
+    // ── Click / Selection dispatch ────────────────────────────────
 
     /// <summary>
-    /// Handles mouse down on the filename text.
-    /// Single click selects, slow double-click starts rename, fast double-click opens.
+    /// Handles a mouse-down on an item (icon or name).
+    /// Returns true if the caller should handle the event as handled.
     /// </summary>
-    public void HandleNameMouseDown(FolderItem folderItem, ItemsControl itemsControl, MouseButtonEventArgs e)
+    public bool HandleItemMouseDown(FolderItem clickedItem, bool isNameClick, Action<IEnumerable<FolderItem>> clearAllSelections)
     {
-        if (folderItem.IsEditing) return;
+        if (clickedItem.IsEditing) return false;
 
-        var folders = itemsControl.ItemsSource as IEnumerable<FolderItem>;
-        if (folders != null) CommitActiveRename(folders, itemsControl);
+        CommitPendingRename(clearAllSelections, null);
 
-        int currentTick = Environment.TickCount;
-        int delta = currentTick - _lastClickTick;
-        uint doubleClickThreshold = GetDoubleClickTime();
+        var action = _clickTracker.RecordClick(clickedItem);
 
-        if (_lastClickedItem == folderItem && delta > 0 && delta <= doubleClickThreshold)
+        switch (action)
         {
-            _rename.CancelPending();
-            OpenItem(folderItem);
-            e.Handled = true;
-            _lastClickedItem = null;
-            return;
+            case ClickTracker.ClickAction.Open:
+                OpenItem(clickedItem);
+                return true;
+
+            case ClickTracker.ClickAction.BeginRename:
+                if (isNameClick)
+                    _renameManager.StartPending(clickedItem);
+                return true;
+
+            case ClickTracker.ClickAction.Select:
+                _renameManager.CancelPending();
+                clearAllSelections(Array.Empty<FolderItem>());
+                clickedItem.IsSelected = true;
+                return true;
         }
 
-        _lastClickedItem = folderItem;
-        _lastClickTick = currentTick;
-
-        if (folderItem.IsSelected)
-        {
-            _rename.StartPending(folderItem, itemsControl);
-        }
-        else
-        {
-            _rename.CancelPending();
-            if (folders != null) ClearAllSelections(folders);
-            folderItem.IsSelected = true;
-        }
-
-        e.Handled = true;
+        return true;
     }
 
     /// <summary>
-    /// Handles mouse down on the item icon.
-    /// Single click selects, double click opens. Never triggers rename.
+    /// Commits any active rename, passing the active item to the callback
+    /// which the caller should use to find the TextBox and invoke <see cref="FinalizeRename"/>.
     /// </summary>
-    public void HandleIconMouseDown(FolderItem folderItem, ItemsControl itemsControl, MouseButtonEventArgs e)
+    public bool CommitPendingRename(Action<IEnumerable<FolderItem>> clearAllSelections, Action<FolderItem>? onCommitted)
     {
-        if (folderItem.IsEditing) return;
-
-        var folders = itemsControl.ItemsSource as IEnumerable<FolderItem>;
-        if (folders != null) CommitActiveRename(folders, itemsControl);
-        _rename.CancelPending();
-
-        int currentTick = Environment.TickCount;
-        int delta = currentTick - _lastClickTick;
-        uint doubleClickThreshold = GetDoubleClickTime();
-
-        if (_lastClickedItem == folderItem && delta > 0 && delta <= doubleClickThreshold)
+        return _renameManager.CommitActive(item =>
         {
-            OpenItem(folderItem);
-            e.Handled = true;
-            _lastClickedItem = null;
-            return;
-        }
-
-        _lastClickedItem = folderItem;
-        _lastClickTick = currentTick;
-
-        if (!folderItem.IsSelected)
-        {
-            if (folders != null) ClearAllSelections(folders);
-            folderItem.IsSelected = true;
-        }
-
-        e.Handled = true;
+            onCommitted?.Invoke(item);
+        });
     }
 
-    /// <summary>Clears all selections in the given folder collection.</summary>
-    public void ClearAllSelections(IEnumerable<FolderItem> folders)
+    /// <summary>Finalizes a rename using the text from an already-known new name.</summary>
+    public void FinalizeRename(FolderItem item, string newName)
     {
-        foreach (var item in folders)
-            item.IsSelected = false;
+        var result = _fileOps.Rename(item, newName);
+        if (!result.Success && result.ErrorMessage != null)
+            ErrorDisplayRequested?.Invoke(result.ErrorMessage);
     }
 
-    // ──────────────────────────────── Open ─────────────────────────────────
+    // ── Open ──────────────────────────────────────────────────────
 
-    /// <summary>
-    /// Opens a folder (navigates) or file (launches process).
-    /// </summary>
     public void OpenItem(FolderItem item)
     {
         if (item.IsFolder)
@@ -142,283 +114,66 @@ public class FileInteractionService
             return;
         }
 
-        try
-        {
-            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(item.FullPath) { UseShellExecute = true });
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Could not open '{item.Name}': {ex.Message}", "Open Error",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
-        }
+        var result = _processLauncher.OpenWithShell(item.FullPath);
+        if (!result.Success && result.ErrorMessage != null)
+            ErrorDisplayRequested?.Invoke(result.ErrorMessage);
     }
 
-    // ──────────────────────────────── Rename ───────────────────────────────
+    // ── Rename ────────────────────────────────────────────────────
 
-    /// <summary>Commits an active rename on a given item.</summary>
-    public void CommitRename(TextBox textBox, FolderItem item)
+    /// <summary>Begins rename mode on the given item.</summary>
+    public void BeginRename(FolderItem item) => _renameManager.BeginRename(item);
+
+    /// <summary>Handles Enter (commit) / Escape (cancel) key presses during rename.</summary>
+    public void HandleRenameKey(FolderItem item, string newName, System.Windows.Input.Key key)
     {
-        if (!item.IsEditing) return;
-
-        item.IsEditing = false;
-        string newName = textBox.Text.Trim();
-
-        if (string.IsNullOrEmpty(newName) || newName == item.Name)
-            return;
-
-        string? dir = Path.GetDirectoryName(item.FullPath);
-        if (dir == null) return;
-
-        string newPath = Path.Combine(dir, newName);
-
-        try
-        {
-            if (item.IsFolder)
-            {
-                if (!Directory.Exists(item.FullPath) || Directory.Exists(newPath))
-                    return;
-                Directory.Move(item.FullPath, newPath);
-            }
-            else
-            {
-                if (!File.Exists(item.FullPath) || File.Exists(newPath))
-                    return;
-                File.Move(item.FullPath, newPath);
-            }
-
-            item.Name = newName;
-            item.FullPath = newPath;
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Rename failed: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
-    }
-
-    /// <summary>
-    /// Commits any active rename across the provided folder collection.
-    /// Uses <see cref="RenameManager"/> to find the active item in O(1).
-    /// </summary>
-    public void CommitActiveRename(IEnumerable<FolderItem> folders, ItemsControl? itemsControl)
-    {
-        _rename.CommitActive(itemsControl, CommitRename);
-    }
-
-    /// <summary>Starts rename mode on the given item.</summary>
-    public void BeginRename(FolderItem item, ItemsControl? itemsControl)
-    {
-        _rename.BeginRename(item, itemsControl);
-    }
-
-    /// <summary>Handles rename TextBox key events (Enter to commit, Escape to cancel).</summary>
-    public void HandleRenameKeyDown(KeyEventArgs e, TextBox textBox, FolderItem item)
-    {
-        if (e.Key == Key.Enter)
-            CommitRename(textBox, item);
-        else if (e.Key == Key.Escape)
+        if (key == System.Windows.Input.Key.Enter)
+            FinalizeRename(item, newName);
+        else if (key == System.Windows.Input.Key.Escape)
             item.IsEditing = false;
     }
 
-    // ──────────────────────────── Delete ───────────────────────────────────
+    // ── Delete ────────────────────────────────────────────────────
 
-    /// <summary>Sends the given item to the Recycle Bin (no prompt).</summary>
     public void DeleteToTrash(FolderItem item)
     {
-        try
-        {
-            if (item.IsFolder)
-            {
-                Microsoft.VisualBasic.FileIO.FileSystem.DeleteDirectory(
-                    item.FullPath,
-                    UIOption.OnlyErrorDialogs,
-                    RecycleOption.SendToRecycleBin);
-            }
-            else
-            {
-                Microsoft.VisualBasic.FileIO.FileSystem.DeleteFile(
-                    item.FullPath,
-                    UIOption.OnlyErrorDialogs,
-                    RecycleOption.SendToRecycleBin);
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Delete failed: {ex.Message}", "Error",
-                MessageBoxButton.OK, MessageBoxImage.Error);
-        }
+        var result = _fileOps.DeleteToTrash(item.FullPath, item.IsFolder);
+        if (!result.Success && result.ErrorMessage != null)
+            ErrorDisplayRequested?.Invoke(result.ErrorMessage);
     }
 
-    // ──────────────────────────── Rubber band ──────────────────────────────
-
-    /// <summary>Rubber band selection: mouse down on empty space.</summary>
-    public void HandleRubberBandMouseDown(Point position, Canvas selectionCanvas, Border selectionBorder)
-    {
-        _rename.CancelPending();
-
-        _rubberBandStart = position;
-        _isRubberBanding = false;
-
-        selectionCanvas.CaptureMouse();
-        selectionBorder.Visibility = Visibility.Collapsed;
-    }
-
-    /// <summary>Rubber band selection: mouse move.</summary>
-    public void HandleRubberBandMouseMove(Point position, Canvas selectionCanvas, Border selectionBorder)
-    {
-        if (Mouse.Captured != selectionCanvas)
-            return;
-
-        double dx = Math.Abs(position.X - _rubberBandStart.X);
-        double dy = Math.Abs(position.Y - _rubberBandStart.Y);
-
-        if (dx > 3 || dy > 3)
-        {
-            _isRubberBanding = true;
-            selectionBorder.Visibility = Visibility.Visible;
-            UpdateSelectionRect(position, selectionCanvas, selectionBorder);
-        }
-    }
-
-    /// <summary>Rubber band selection: mouse up.</summary>
-    public void HandleRubberBandMouseUp(Canvas selectionCanvas, Border selectionBorder)
-    {
-        if (Mouse.Captured != selectionCanvas)
-            return;
-
-        selectionCanvas.ReleaseMouseCapture();
-        selectionBorder.Visibility = Visibility.Collapsed;
-
-        _isRubberBanding = false;
-    }
-
-    public bool IsRubberBanding => _isRubberBanding;
-
-    public bool IsClickOnItem(MouseButtonEventArgs e, ItemsControl itemsControl)
-        => GetItemAtPosition(e, itemsControl) != null;
-
-    public FolderItem? GetItemAtPosition(MouseButtonEventArgs e, ItemsControl itemsControl)
-        => GetItemAtPoint(e.GetPosition(itemsControl), itemsControl);
-
-    public FolderItem? GetItemAtPoint(Point position, ItemsControl itemsControl)
-    {
-        var hit = VisualTreeHelper.HitTest(itemsControl, position);
-        if (hit == null) return null;
-
-        DependencyObject? obj = hit.VisualHit;
-        while (obj != null && obj != itemsControl)
-        {
-            if (obj is ContentPresenter cp && cp.DataContext is FolderItem item)
-                return item;
-            obj = VisualTreeHelper.GetParent(obj);
-        }
-        return null;
-    }
-
-    public void UpdateRubberBandSelection(
-        IEnumerable<FolderItem> folders,
-        ItemsControl itemsControl,
-        Canvas selectionCanvas,
-        Border selectionBorder)
-    {
-        var rect = new Rect(
-            Canvas.GetLeft(selectionBorder),
-            Canvas.GetTop(selectionBorder),
-            selectionBorder.Width,
-            selectionBorder.Height);
-
-        foreach (var item in folders)
-        {
-            var container = itemsControl.ItemContainerGenerator.ContainerFromItem(item) as ContentPresenter;
-            if (container != null)
-            {
-                var topLeft = container.TranslatePoint(new Point(0, 0), selectionCanvas);
-                var itemRect = new Rect(topLeft, new Size(container.ActualWidth, container.ActualHeight));
-                item.IsSelected = rect.IntersectsWith(itemRect);
-            }
-        }
-    }
-
-    // ──────────────────────────── Clipboard ────────────────────────────────
+    // ── Clipboard ─────────────────────────────────────────────────
 
     public void HandleCopy(IEnumerable<FolderItem> folders)
     {
         var paths = GetSelectedPaths(folders);
-        if (paths.Count == 0) return;
-
-        _clipboardIsCut = false;
-        Clipboard.SetFileDropList(CreateStringCollection(paths));
+        _clipboard.Copy(paths);
     }
 
     public void HandleCut(IEnumerable<FolderItem> folders)
     {
         var paths = GetSelectedPaths(folders);
-        if (paths.Count == 0) return;
-
-        _clipboardIsCut = true;
-        Clipboard.SetFileDropList(CreateStringCollection(paths));
+        _clipboard.Cut(paths);
     }
 
     public void HandlePaste(string currentDirectory)
     {
         if (string.IsNullOrEmpty(currentDirectory)) return;
-        if (!Clipboard.ContainsFileDropList()) return;
 
-        var paths = Clipboard.GetFileDropList();
-        if (paths.Count == 0) return;
+        var paths = _clipboard.TryGetFileDropList();
+        if (paths == null || paths.Count == 0) return;
 
-        var arr = new string[paths.Count];
-        paths.CopyTo(arr, 0);
+        var results = _fileOps.TransferFiles(paths, currentDirectory, forceCopy: !_clipboard.IsCut);
+        _clipboard.ResetCutFlag();
 
-        TransferFiles(arr, currentDirectory, forceCopy: !_clipboardIsCut);
-
-        _clipboardIsCut = false;
-    }
-
-    // ──────────────────────────── File transfer ────────────────────────────
-
-    /// <summary>
-    /// Moves or copies files/directories to the target directory.
-    /// Same-drive is moved by default; cross-drive is copied.
-    /// Set <paramref name="forceCopy"/> to always copy (used by paste-after-copy).
-    /// Duplicate names get a numeric suffix ("file - 1", "file - 2").
-    /// </summary>
-    public void TransferFiles(string[] sources, string targetDir, bool forceCopy)
-    {
-        foreach (var source in sources)
+        foreach (var result in results)
         {
-            try
-            {
-                string name = Path.GetFileName(source);
-                string dest = GetUniquePath(targetDir, name);
-                bool sameDrive = string.Equals(
-                    Path.GetPathRoot(source), Path.GetPathRoot(targetDir),
-                    StringComparison.OrdinalIgnoreCase);
-
-                if (File.Exists(source))
-                {
-                    if (!forceCopy && sameDrive)
-                        File.Move(source, dest);
-                    else
-                        File.Copy(source, dest, overwrite: false);
-                }
-                else if (Directory.Exists(source))
-                {
-                    if (!forceCopy && sameDrive)
-                        Directory.Move(source, dest);
-                    else
-                        FileSystem.CopyDirectory(source, dest);
-                }
-            }
-            catch (Exception ex)
-            {
-                MessageBox.Show($"Transfer failed for '{Path.GetFileName(source)}': {ex.Message}",
-                    "Transfer Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-            }
+            if (!result.Success && result.ErrorMessage != null)
+                ErrorDisplayRequested?.Invoke(result.ErrorMessage);
         }
     }
 
-    // ──────────────────────────── Helpers ──────────────────────────────────
+    // ── Helpers ───────────────────────────────────────────────────
 
     private static List<string> GetSelectedPaths(IEnumerable<FolderItem> folders)
     {
@@ -427,57 +182,5 @@ public class FileInteractionService
             if (item.IsSelected)
                 paths.Add(item.FullPath);
         return paths;
-    }
-
-    private static StringCollection CreateStringCollection(List<string> paths)
-    {
-        var collection = new StringCollection();
-        foreach (var p in paths) collection.Add(p);
-        return collection;
-    }
-
-    private static string GetUniquePath(string dir, string name)
-    {
-        string dest = Path.Combine(dir, name);
-        if (!File.Exists(dest) && !Directory.Exists(dest))
-            return dest;
-
-        string ext = Path.GetExtension(name);
-        string baseName = Path.GetFileNameWithoutExtension(name);
-        int counter = 1;
-        while (true)
-        {
-            string candidate = Path.Combine(dir, $"{baseName} - {counter}{ext}");
-            if (!File.Exists(candidate) && !Directory.Exists(candidate))
-                return candidate;
-            counter++;
-        }
-    }
-
-    private void UpdateSelectionRect(Point current, Canvas selectionCanvas, Border selectionBorder)
-    {
-        double x = Math.Min(current.X, _rubberBandStart.X);
-        double y = Math.Min(current.Y, _rubberBandStart.Y);
-        double w = Math.Abs(current.X - _rubberBandStart.X);
-        double h = Math.Abs(current.Y - _rubberBandStart.Y);
-
-        Canvas.SetLeft(selectionBorder, x);
-        Canvas.SetTop(selectionBorder, y);
-        selectionBorder.Width = w;
-        selectionBorder.Height = h;
-    }
-
-    public static T? FindDescendant<T>(DependencyObject parent) where T : DependencyObject
-    {
-        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-        {
-            var child = VisualTreeHelper.GetChild(parent, i);
-            if (child is T match)
-                return match;
-            var result = FindDescendant<T>(child);
-            if (result != null)
-                return result;
-        }
-        return null;
     }
 }
