@@ -37,4 +37,11 @@
     </Content>
   </ItemGroup>
 
+  <ItemGroup>
+    <None Remove="Config\theme-config.json" />
+    <Content Include="Config\theme-config.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
 </Project>

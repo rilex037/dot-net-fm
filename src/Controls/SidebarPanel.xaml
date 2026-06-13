@@ -5,8 +5,6 @@
              xmlns:local="clr-namespace:dot_net_fm">
 
     <UserControl.Resources>
-        <!-- Sidebar item style with hover -->
-        <SolidColorBrush x:Key="HoverSidebarBrush" Color="#15FFFFFF"/>
         <Style x:Key="SidebarItemStyle" TargetType="Border">
             <Setter Property="Background" Value="Transparent"/>
             <Style.Triggers>
@@ -19,10 +17,10 @@
 
     <ScrollViewer Background="{StaticResource SidebarBrush}" VerticalScrollBarVisibility="Hidden"
                   BorderThickness="0,0,1,0" BorderBrush="{StaticResource SeparatorBrush}">
-        <StackPanel Margin="0,4,0,0">
+        <StackPanel Margin="{StaticResource SpacingOuterMargin}">
             <!-- My Computer section -->
-            <StackPanel Margin="0,0,0,4">
-                <Grid Height="24" Margin="8,4,0,0">
+            <StackPanel Margin="{StaticResource SpacingChildSectionMargin}">
+                <Grid Height="{StaticResource SizeSectionHeaderHeight}" Margin="{StaticResource SpacingHeaderMargin}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
@@ -33,15 +31,15 @@
                 <ItemsControl ItemsSource="{Binding MyComputerItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="local:SidebarItem+Item">
-                            <Border Height="26" Padding="20,0,0,0" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
+                            <Border Height="{StaticResource SizeSidebarItemHeight}" Padding="{StaticResource SpacingSidebarItemPadding}" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
                                     Style="{StaticResource SidebarItemStyle}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="16"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                    <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -50,8 +48,8 @@
             </StackPanel>
 
             <!-- Network section -->
-            <StackPanel Margin="0,8,0,0">
-                <Grid Height="24" Margin="8,0,0,0">
+            <StackPanel Margin="{StaticResource SpacingSectionMargin}">
+                <Grid Height="{StaticResource SizeSectionHeaderHeight}" Margin="{StaticResource SpacingHeaderMargin}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
@@ -62,15 +60,15 @@
                 <ItemsControl ItemsSource="{Binding NetworkItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="local:SidebarItem+Item">
-                            <Border Height="26" Padding="20,0,0,0" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
+                            <Border Height="{StaticResource SizeSidebarItemHeight}" Padding="{StaticResource SpacingSidebarItemPadding}" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
                                     Style="{StaticResource SidebarItemStyle}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="16"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                    <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -79,8 +77,8 @@
             </StackPanel>
 
             <!-- Bookmarks section -->
-            <StackPanel Margin="0,8,0,0">
-                <Grid Height="24" Margin="8,0,0,0">
+            <StackPanel Margin="{StaticResource SpacingSectionMargin}">
+                <Grid Height="{StaticResource SizeSectionHeaderHeight}" Margin="{StaticResource SpacingHeaderMargin}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
@@ -91,15 +89,15 @@
                 <ItemsControl ItemsSource="{Binding BookmarkItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="local:SidebarItem+Item">
-                            <Border Height="26" Padding="20,0,0,0" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
+                            <Border Height="{StaticResource SizeSidebarItemHeight}" Padding="{StaticResource SpacingSidebarItemPadding}" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
                                     Style="{StaticResource SidebarItemStyle}">
                                 <Grid>
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="16"/>
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
-                                    <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="14" Height="14" Stretch="Uniform" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="6,0,0,0"/>
+                                    <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>

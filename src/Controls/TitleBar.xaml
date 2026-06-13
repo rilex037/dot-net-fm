@@ -32,8 +32,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="bg" Property="Background" Value="#E81123"/>
-                                <Setter Property="Foreground" Value="#FFFFFF"/>
+                                <Setter TargetName="bg" Property="Background" Value="{StaticResource CloseButtonHoverBrush}"/>
+                                <Setter Property="Foreground" Value="{StaticResource WhiteBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -48,22 +48,39 @@
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock x:Name="TitleTextBlock" Grid.Column="0" Text="Home" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
+        <TextBlock x:Name="TitleTextBlock" Grid.Column="0" Text="Home" FontSize="12"
+                   Foreground="{StaticResource TextPrimaryBrush}"
+                   HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
 
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-            
-            <Button Width="46" Height="30" Style="{StaticResource ChromeButtonStyle}" WindowChrome.IsHitTestVisibleInChrome="True" Click="MinimizeButton_Click">
-                <Path Data="M 0,5 H 10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+
+            <Button Width="{StaticResource SizeButtonWidth}" Height="{StaticResource SizeButtonHeight}"
+                    Style="{StaticResource ChromeButtonStyle}"
+                    WindowChrome.IsHitTestVisibleInChrome="True" Click="MinimizeButton_Click">
+                <Path Data="M 0,5 H 10"
+                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                      StrokeThickness="1" Width="10" Height="10"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Button>
 
-            <Button Width="46" Height="30" Style="{StaticResource ChromeButtonStyle}" WindowChrome.IsHitTestVisibleInChrome="True" Click="MaximizeRestoreButton_Click">
-                <Path x:Name="MaximizeIcon" Data="M 0,1 H 10 V 9 H 0 Z" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Button Width="{StaticResource SizeButtonWidth}" Height="{StaticResource SizeButtonHeight}"
+                    Style="{StaticResource ChromeButtonStyle}"
+                    WindowChrome.IsHitTestVisibleInChrome="True" Click="MaximizeRestoreButton_Click">
+                <Path x:Name="MaximizeIcon" Data="M 0,1 H 10 V 9 H 0 Z"
+                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                      StrokeThickness="1" Width="10" Height="10"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Button>
 
-            <Button Width="46" Height="30" Style="{StaticResource CloseButtonStyle}" WindowChrome.IsHitTestVisibleInChrome="True" Click="CloseButton_Click">
-                <Path Data="M 0,0 L 10,10 M 10,0 L 0,10" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1" Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            <Button Width="{StaticResource SizeButtonWidth}" Height="{StaticResource SizeButtonHeight}"
+                    Style="{StaticResource CloseButtonStyle}"
+                    WindowChrome.IsHitTestVisibleInChrome="True" Click="CloseButton_Click">
+                <Path Data="M 0,0 L 10,10 M 10,0 L 0,10"
+                      Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                      StrokeThickness="1" Width="10" Height="10"
+                      HorizontalAlignment="Center" VerticalAlignment="Center"/>
             </Button>
-            
+
         </StackPanel>
     </Grid>
 </UserControl>

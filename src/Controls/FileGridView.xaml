@@ -5,22 +5,19 @@
              Focusable="True">
 
     <UserControl.Resources>
-        <SolidColorBrush x:Key="HoverHighlightBrush" Color="#1FFFFFFF"/>
-
         <Style x:Key="ScrollThumbs" TargetType="Thumb">
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
                         <Border x:Name="RectangleCorner"
-                                Background="#55FFFFFF"
-                                CornerRadius="4"
-                                Margin="2,0,2,0" />
+                                Background="{StaticResource ScrollThumbDefault}"
+                                CornerRadius="{StaticResource CornerRadiusScrollThumb}"/>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="RectangleCorner" Property="Background" Value="#88FFFFFF" />
+                                <Setter TargetName="RectangleCorner" Property="Background" Value="{StaticResource ScrollThumbHover}" />
                             </Trigger>
                             <Trigger Property="IsDragging" Value="True">
-                                <Setter TargetName="RectangleCorner" Property="Background" Value="#AAFFFFFF" />
+                                <Setter TargetName="RectangleCorner" Property="Background" Value="{StaticResource ScrollThumbDragging}" />
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -29,7 +26,7 @@
         </Style>
 
         <Style TargetType="ScrollBar">
-            <Setter Property="Width" Value="8"/>
+            <Setter Property="Width" Value="{StaticResource SizeScrollBarWidth}"/>
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -73,7 +70,7 @@
                       Background="Transparent"
                       PreviewMouseWheel="FileScrollViewer_PreviewMouseWheel">
 
-            <ItemsControl x:Name="FolderItemsControl" Margin="24"
+            <ItemsControl x:Name="FolderItemsControl" Margin="{StaticResource SpacingContentMargin}"
                           ItemsSource="{Binding Folders, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -84,7 +81,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="local:FolderItem">
                         <Border x:Name="ItemBorder" Cursor="Hand"
-                                Margin="4" CornerRadius="4"
+                                Margin="{StaticResource SpacingItemMargin}" CornerRadius="{StaticResource CornerRadiusLarge}"
                                 MouseLeftButtonDown="ItemBorder_MouseLeftButtonDown">
                             <Border.Style>
                                 <Style TargetType="Border">
@@ -94,23 +91,16 @@
                                             <Setter Property="Background" Value="{StaticResource HoverHighlightBrush}"/>
                                         </Trigger>
                                         <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="Background" Value="#33FFFFFF"/>
+                                            <Setter Property="Background" Value="{StaticResource SelectedItemBackground}"/>
                                         </DataTrigger>
                                     </Style.Triggers>
                                 </Style>
                             </Border.Style>
 
-                            <!--
-                                Cell width is IconSize * 2.0.
-                                The thumbnail zone is a fixed-height Border so every cell in the
-                                WrapPanel row has the same height regardless of image aspect ratio.
-                                The Image uses Stretch=Uniform + MaxWidth/MaxHeight so portrait,
-                                landscape and square images all render at their natural ratio.
-                            -->
                             <StackPanel Orientation="Vertical"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Top"
-                                        Margin="6,8,6,6"
+                                        Margin="{StaticResource SpacingItemPadding}"
                                         Width="{Binding IconSize,
                                                 RelativeSource={RelativeSource AncestorType=local:FileGridView},
                                                 ConverterParameter=2.0}">
@@ -118,7 +108,7 @@
                                 <!-- Fixed-height zone keeps row heights uniform in the WrapPanel -->
                                 <Border Height="{Binding IconSize, RelativeSource={RelativeSource AncestorType=local:FileGridView}}"
                                         HorizontalAlignment="Stretch"
-                                        Margin="0,0,0,8">
+                                        Margin="{StaticResource SpacingIconBottomMargin}">
                                     <Image x:Name="IconImage"
                                            Stretch="Uniform"
                                            HorizontalAlignment="Center"
@@ -150,12 +140,12 @@
                                 </TextBlock>
 
                                 <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
-                                         Background="#333333"
+                                         Background="{StaticResource InputBackground}"
                                          Foreground="{StaticResource TextPrimaryBrush}"
                                          BorderBrush="{StaticResource IconBrush}"
                                          BorderThickness="1"
                                          FontSize="11"
-                                         Padding="2,1"
+                                         Padding="{StaticResource SpacingCompactPadding}"
                                          HorizontalAlignment="Stretch"
                                          VerticalContentAlignment="Center"
                                          KeyDown="RenameBox_KeyDown"
@@ -178,7 +168,7 @@
                                            TextWrapping="Wrap"
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
-                                           Margin="0,2,0,0"/>
+                                           Margin="{StaticResource SpacingItemCountMargin}"/>
                             </StackPanel>
                         </Border>
                     </DataTemplate>
@@ -188,8 +178,8 @@
 
         <Canvas x:Name="SelectionCanvas" IsHitTestVisible="False">
             <Border x:Name="SelectionBorder"
-                    Background="#220078D7"
-                    BorderBrush="#CC0078D7"
+                    Background="{StaticResource SelectionBackground}"
+                    BorderBrush="{StaticResource SelectionBorder}"
                     BorderThickness="1"
                     Visibility="Collapsed"/>
         </Canvas>
