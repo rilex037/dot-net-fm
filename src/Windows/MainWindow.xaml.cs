@@ -1,37 +1,27 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.Threading;
-using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Input;
-using System.Windows.Threading;
+using System.Windows.Media;
 
 namespace dot_net_fm;
 
 /// <summary>
-/// Main window: thin layout shell assembling all UserControls
-/// and wiring up services. No business logic - delegates to services.
+/// Main window: thin layout shell that delegates all state to
+/// <see cref="TabManager"/>. UI updates flow from a single
+/// <see cref="TabStore.StateChanged"/> event per tab.
 /// </summary>
 public partial class MainWindow : Window
 {
-    public ObservableCollection<FolderItem> Folders { get; } = new();
-    public ObservableCollection<SidebarItem.Item> MyComputerItems { get; } = new();
-    public ObservableCollection<SidebarItem.Item> NetworkItems { get; } = new();
-    public ObservableCollection<SidebarItem.Item> BookmarkItems { get; } = new();
+    private readonly TabManager _tabs;
+    private readonly FileInteractionService _interaction = new();
+    private readonly DragDropService _dragDrop = new();
 
-    private readonly NavigationService _navigation;
-    private readonly FileInteractionService _interaction;
-    private readonly DirectoryWatcherService _directoryWatcher = new();
-    private bool _isRefreshing;
-
-    // Cancellation scope for the current batch of icon loads.
-    // Signalled on navigation - cancels all in-flight LoadIconAsync calls immediately
-    // so old FolderItems become unreachable and GC reclaims their memory.
-    private CancellationTokenSource? _navCts;
-
-    // Process at most this many items per batch to keep peak working set small.
-    private const int BatchSize = 20;
+    private readonly ObservableCollection<SidebarItem.Item> _myComputerItems = new();
+    private readonly ObservableCollection<SidebarItem.Item> _networkItems    = new();
+    private readonly ObservableCollection<SidebarItem.Item> _bookmarkItems   = new();
 
     public MainWindow()
     {
@@ -39,60 +29,39 @@ public partial class MainWindow : Window
 
         string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        _navigation = new NavigationService(userProfilePath);
-        _interaction = new FileInteractionService();
+        _tabs = new TabManager(userProfilePath);
 
-        SidebarPanel.MyComputerItems = MyComputerItems;
-        SidebarPanel.NetworkItems    = NetworkItems;
-        SidebarPanel.BookmarkItems   = BookmarkItems;
-
-        FileGrid.Folders            = Folders;
-        FileGrid.InteractionService = _interaction;
+        // Assign sidebar collections before populating them
+        SidebarPanel.MyComputerItems = _myComputerItems;
+        SidebarPanel.NetworkItems    = _networkItems;
+        SidebarPanel.BookmarkItems   = _bookmarkItems;
 
         InitializeSidebar();
-        WireUpNavigationEvents();
-        WireUpInteractionEvents();
-        WireUpUIEvents();
+        WireUpSidebarAndNavEvents();
         WireUpZoomEvents();
+        WireUpTabManagerEvents();
+        WireUpInteractionEvents();
 
-        StatusBar.ZoomChanged += size =>
-        {
-            FileGrid.IconSize = size;
-
-            // Zoom changed - cancel any in-flight icon loads at the old size
-            // and re-load all visible items at the new pixel size.
-            // This ensures we only hold BitmapSources sized for the current zoom,
-            // not 256×256 for a 24×24 display.
-            _navCts?.Cancel();
-            _navCts?.Dispose();
-            _navCts = null;
-
-            // Dispose current NativeIcon on all items - forces re-fetch at new size
-            foreach (var item in Folders)
-                item.NativeIcon = null;
-
-            // If we have a current path, re-load icons at the new zoom level
-            if (!string.IsNullOrEmpty(_navigation.CurrentPath))
-                _ = ReloadIconsAtCurrentZoom(size);
-        };
         StatusBar.ZoomSlider.Value = 3;
 
-        _navigation.NavigateTo(userProfilePath, pushToHistory: false);
+        // Create initial tab
+        _tabs.AddTab();
     }
+
+    // ── Sidebar initialization ─────────────────────────────────────
 
     private void InitializeSidebar()
     {
+        string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
         SidebarItem config = SidebarService.Load();
         SidebarIconMapper.Initialize(config.SidebarIcons);
-
-        string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-        string userName = Environment.UserName;
 
         foreach (var section in config.Sections)
         {
             var target = section.Name.Equals("Network", StringComparison.OrdinalIgnoreCase)
-                ? NetworkItems
-                : MyComputerItems;
+                ? _networkItems
+                : _myComputerItems;
 
             foreach (var entry in section.Items)
             {
@@ -100,7 +69,7 @@ public partial class MainWindow : Window
                 string displayName  = entry.Name;
                 if (entry.Name.Equals("Home", StringComparison.OrdinalIgnoreCase) &&
                     resolvedPath.Equals(userProfilePath, StringComparison.OrdinalIgnoreCase))
-                    displayName = userName;
+                    displayName = Environment.UserName;
 
                 target.Add(new SidebarItem.Item
                 {
@@ -113,7 +82,7 @@ public partial class MainWindow : Window
 
         foreach (var bm in config.Bookmarks)
         {
-            BookmarkItems.Add(new SidebarItem.Item
+            _bookmarkItems.Add(new SidebarItem.Item
             {
                 Name     = bm.Name,
                 IconPath = SidebarIconMapper.GetIconPath(bm.IconPath),
@@ -122,100 +91,123 @@ public partial class MainWindow : Window
         }
     }
 
-    // --- Event wiring ---
+    // ── Tab Manager wiring ─────────────────────────────────────────
 
-    private void WireUpNavigationEvents()
+    private void WireUpTabManagerEvents()
     {
-        _directoryWatcher.DirectoryChanged += OnDirectoryChanged;
-
-        _navigation.DirectoryLoaded += async path =>
-        {
-            // 1. Cancel all in-flight icon loads from the previous navigation
-            //    This makes the old FolderItems unreachable so GC can reclaim them.
-            _navCts?.Cancel();
-            _navCts?.Dispose();
-            _navCts = null;
-
-            // 2. Dispose old items to release their BitmapSources immediately
-            //    (belt-and-suspenders with the cancellation above)
-            foreach (var old in Folders)
-                old.Dispose();
-
-            // 3. Fetch directory entries (background thread, no icons yet)
-            var items = await _navigation.LoadDirectoryItemsAsync(path);
-
-            // 4. Populate collection - WPF renders the grid with no icons (instant)
-            _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
-            Folders.Clear();
-            foreach (var item in items)
-                Folders.Add(item);
-
-            FileGrid.CurrentPath = path;
-            _navigation.RefreshNavState();
-
-            // Start watching the current directory for external changes
-            if (path != NavigationService.MyComputerPath)
-                _directoryWatcher.Watch(path);
-
-            // 5. Force full GC collection - disposed BitmapSources are freed now
-            GC.Collect(2, GCCollectionMode.Forced, blocking: true);
-            GC.WaitForPendingFinalizers();
-            GC.Collect(2, GCCollectionMode.Forced, blocking: true);
-
-            // 6. Yield one frame so the grid renders before we start background work
-            await Dispatcher.InvokeAsync(() => { }, DispatcherPriority.Background);
-
-            // 7. Load icons in small batches so peak working set stays low.
-            //    Each batch yields a frame so the UI stays responsive and already-loaded
-            //    thumbnails are visible immediately.
-            //    Icons are fetched at exactly the current zoom level - no oversized
-            //    BitmapSources wasting memory at small zoom.
-            _navCts = new CancellationTokenSource();
-            var navToken = _navCts.Token;
-            var iconSize = FileGrid.IconSize;
-
-            for (int off = 0; off < items.Count; off += BatchSize)
-            {
-                if (navToken.IsCancellationRequested) break;
-
-                var batch = items.Count - off < BatchSize
-                    ? items.GetRange(off, items.Count - off)
-                    : items.GetRange(off, BatchSize);
-
-                foreach (var item in batch)
-                    item.LoadIconAsync(navToken, iconSize);
-
-                await Dispatcher.Yield(DispatcherPriority.Background);
-            }
-        };
-
-        _navigation.TitleChanged += displayName =>
-        {
-            Title = displayName;
-            TitleBar.SetTitle(displayName);
-        };
-
-        _navigation.DirectoryLoaded += path =>
-        {
-            string displayPath = path == NavigationService.MyComputerPath ? "My Computer" : path;
-            NavToolbar.SetPath(displayPath);
-        };
-
-        _navigation.StatusChanged += status => StatusBar.SetStatus(status);
-
-        _navigation.NavStateChanged += () =>
-            NavToolbar.UpdateNavStates(_navigation.CanGoBack, _navigation.CanGoForward, _navigation.CanGoUp);
+        _tabs.ActiveTabChanged += OnActiveTabChanged;
+        _tabs.AllTabsClosed     += () => _tabs.AddTab();
     }
+
+    private void OnActiveTabChanged(TabStore? newTab)
+    {
+        if (newTab == null) return;
+
+        // Unsubscribe from previous tab
+        // (not needed since we re-subscribe below)
+
+        // Bind FileGrid to the new tab's data
+        FileGrid.Folders = newTab.Folders;
+        FileGrid.InteractionService = _interaction;
+        FileGrid.DragDropService = _dragDrop;
+        FileGrid.CurrentPath = newTab.State.ActivePath;
+        FileGrid.IconSize = newTab.State.IconSize;
+
+        // Sync zoom slider to the new tab's icon size
+        StatusBar.SetZoomForIconSize(newTab.State.IconSize);
+
+        // Update all UI from state
+        ApplyStateToUI(newTab.State);
+
+        // Subscribe to state changes on the new tab
+        newTab.StateChanged += OnActiveTabStateChanged;
+
+        // Refresh tab strip visuals
+        RefreshTabStrip();
+    }
+
+    private void OnActiveTabStateChanged(TabStateRecord state)
+    {
+        // Only update UI if this is still the active tab
+        if (_tabs.ActiveTab?.State.TabId != state.TabId) return;
+
+        ApplyStateToUI(state);
+    }
+
+    private void ApplyStateToUI(TabStateRecord state)
+    {
+        Title = state.Title;
+        TitleBar.SetTitle(state.Title);
+        NavToolbar.SetPath(state.DisplayPath);
+        NavToolbar.UpdateNavStates(state.CanGoBack, state.CanGoForward, state.CanGoUp);
+        StatusBar.SetStatus(state.StatusText);
+        FileGrid.IconSize = state.IconSize;
+        FileGrid.CurrentPath = state.ActivePath;
+    }
+
+    // ── Interaction event wiring ───────────────────────────────────
 
     private void WireUpInteractionEvents()
     {
-        _interaction.NavigateRequested = path => _navigation.NavigateTo(path);
+        _interaction.NavigateRequested = path =>
+        {
+            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.DispatchActive(new TabAction.NavigateTo(path));
+        };
 
         _interaction.ContextMenuRequested = (screenPos, selectedPaths) =>
         {
             ShellContextMenuService.Show(this, screenPos, selectedPaths);
         };
+
+        _dragDrop.TransferRequested = (paths, targetDir, forceCopy) =>
+        {
+            _interaction.TransferFiles(paths, targetDir, forceCopy);
+        };
     }
+
+    // ── Sidebar and Navigation toolbar ─────────────────────────────
+
+    private void WireUpSidebarAndNavEvents()
+    {
+        SidebarPanel.NavigateRequested += path =>
+        {
+            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.DispatchActive(new TabAction.NavigateTo(path));
+        };
+
+        NavToolbar.BackRequested       += () =>
+        {
+            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.DispatchActive(new TabAction.GoBack());
+        };
+
+        NavToolbar.ForwardRequested    += () =>
+        {
+            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.DispatchActive(new TabAction.GoForward());
+        };
+
+        NavToolbar.UpRequested         += () =>
+        {
+            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.DispatchActive(new TabAction.GoUp());
+        };
+
+        NavToolbar.NavigateToRequested += path =>
+        {
+            string target = path.Trim();
+            if (string.IsNullOrEmpty(target)) return;
+
+            if (target.Equals("my computer", StringComparison.OrdinalIgnoreCase))
+                target = NavigationService.MyComputerPath;
+
+            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+            _tabs.DispatchActive(new TabAction.NavigateTo(target));
+        };
+    }
+
+    // ── Zoom ───────────────────────────────────────────────────────
 
     private void WireUpZoomEvents()
     {
@@ -230,29 +222,15 @@ public partial class MainWindow : Window
                 e.Handled = true;
             }
         };
-    }
 
-    private void WireUpUIEvents()
-    {
-        SidebarPanel.NavigateRequested += path => _navigation.NavigateTo(path);
-
-        NavToolbar.BackRequested       += () => _navigation.GoBack();
-        NavToolbar.ForwardRequested    += () => _navigation.GoForward();
-        NavToolbar.UpRequested         += () => _navigation.GoUp();
-        NavToolbar.NavigateToRequested += path =>
+        StatusBar.ZoomChanged += size =>
         {
-            string target = path.Trim();
-            if (string.IsNullOrEmpty(target)) return;
-
-            // Allow typing "::mycomputer" to go back to My Computer
-            if (target.Equals("my computer", StringComparison.OrdinalIgnoreCase))
-                target = NavigationService.MyComputerPath;
-
-            _navigation.NavigateTo(target);
+            if (_tabs.ActiveTab == null) return;
+            _tabs.DispatchActive(new TabAction.SetIconSize(size));
         };
     }
 
-    // --- Command Executed handlers (routed via CommandIds + Window.InputBindings) ---
+    // ── Command handlers ───────────────────────────────────────────
 
     private void Exit_Executed(object sender, ExecutedRoutedEventArgs e) =>
         Close();
@@ -262,7 +240,7 @@ public partial class MainWindow : Window
         var selected = FindFirstSelected();
         if (selected != null)
         {
-            _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
+            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
             _interaction.BeginRename(selected, FileGrid.FolderItemsControl);
         }
     }
@@ -272,27 +250,33 @@ public partial class MainWindow : Window
         var selected = FindFirstSelected();
         if (selected != null)
         {
-            _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
+            _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
             _interaction.DeleteToTrash(selected);
         }
     }
 
-    private void Copy_Executed(object sender, ExecutedRoutedEventArgs e) =>
-        _interaction.HandleCopy(Folders);
+    private void Copy_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_tabs.ActiveTab != null)
+            _interaction.HandleCopy(_tabs.ActiveTab.Folders);
+    }
 
-    private void Cut_Executed(object sender, ExecutedRoutedEventArgs e) =>
-        _interaction.HandleCut(Folders);
+    private void Cut_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_tabs.ActiveTab != null)
+            _interaction.HandleCut(_tabs.ActiveTab.Folders);
+    }
 
-    private void Paste_Executed(object sender, ExecutedRoutedEventArgs e) =>
-        _interaction.HandlePaste(_navigation.CurrentPath);
+    private void Paste_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_tabs.ActiveTab != null)
+            _interaction.HandlePaste(_tabs.ActiveTab.State.ActivePath);
+    }
 
     private void Refresh_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        if (!string.IsNullOrEmpty(_navigation.CurrentPath))
-        {
-            _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
-            _navigation.NavigateTo(_navigation.CurrentPath, pushToHistory: false);
-        }
+        _tabs.CommitActiveRename(_interaction, FileGrid.FolderItemsControl);
+        _tabs.DispatchActive(new TabAction.BeginRefresh());
     }
 
     private void ZoomIn_Executed(object sender, ExecutedRoutedEventArgs e) =>
@@ -301,58 +285,138 @@ public partial class MainWindow : Window
     private void ZoomOut_Executed(object sender, ExecutedRoutedEventArgs e) =>
         StatusBar.ZoomSlider.Value = Math.Max(StatusBar.ZoomSlider.Minimum, StatusBar.ZoomSlider.Value - 1);
 
-    // --- Helpers ---
+    // ── Tab management commands ────────────────────────────────────
 
-    /// <summary>
-    /// Re-loads all current folder icons at the given zoom size.
-    /// Clears old icons and starts a new batch at the new size.
-    /// </summary>
-    private async Task ReloadIconsAtCurrentZoom(int iconSize)
+    private void NewTab_Executed(object sender, ExecutedRoutedEventArgs e) =>
+        _tabs.AddTab();
+
+    private void CloseTab_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        _navCts = new CancellationTokenSource();
-        var navToken = _navCts.Token;
-
-        // Yield so the UI processes the nulled icons before we start new loads
-        await Dispatcher.Yield(DispatcherPriority.Background);
-
-        for (int off = 0; off < Folders.Count; off += BatchSize)
-        {
-            if (navToken.IsCancellationRequested) break;
-
-            int end = Math.Min(off + BatchSize, Folders.Count);
-            for (int i = off; i < end; i++)
-                Folders[i].LoadIconAsync(navToken, iconSize);
-
-            await Dispatcher.Yield(DispatcherPriority.Background);
-        }
+        if (_tabs.ActiveTab != null)
+            _tabs.CloseTab(_tabs.ActiveTab.State.TabId);
     }
 
-    /// <summary>
-    /// Handles directory change events from the watcher - refreshes the current view.
-    /// Guards against re-entrant refreshes while one is already in flight.
-    /// </summary>
-    private void OnDirectoryChanged()
+    private void NextTab_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        if (_isRefreshing) return;
-        _isRefreshing = true;
+        if (_tabs.Tabs.Count < 2) return;
+        int currentIdx = _tabs.ActiveTab != null
+            ? _tabs.Tabs.IndexOf(_tabs.ActiveTab)
+            : -1;
+        int nextIdx = (currentIdx + 1) % _tabs.Tabs.Count;
+        _tabs.SetActiveTab(nextIdx);
+    }
 
-        try
+    private void PrevTab_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_tabs.Tabs.Count < 2) return;
+        int currentIdx = _tabs.ActiveTab != null
+            ? _tabs.Tabs.IndexOf(_tabs.ActiveTab)
+            : -1;
+        int prevIdx = (currentIdx - 1 + _tabs.Tabs.Count) % _tabs.Tabs.Count;
+        _tabs.SetActiveTab(prevIdx);
+    }
+
+    // ── Tab strip UI ───────────────────────────────────────────────
+
+    private void AddTabButton_Click(object sender, RoutedEventArgs e) =>
+        _tabs.AddTab();
+
+    private void TabButton_Click(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.Tag is Guid tabId)
+            _tabs.SetActiveTab(tabId);
+    }
+
+    private void TabCloseButton_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is FrameworkElement fe && fe.Tag is Guid tabId)
+            _tabs.CloseTab(tabId);
+    }
+
+    private void RefreshTabStrip()
+    {
+        TabStripPanel.Children.Clear();
+
+        foreach (var store in _tabs.Tabs)
         {
-            if (!string.IsNullOrEmpty(_navigation.CurrentPath))
+            var tabId = store.State.TabId;
+            bool isActive = _tabs.ActiveTab?.State.TabId == tabId;
+
+            var titleBlock = new TextBlock
             {
-                _interaction.CommitActiveRename(Folders, FileGrid.FolderItemsControl);
-                _navigation.NavigateTo(_navigation.CurrentPath, pushToHistory: false);
-            }
-        }
-        finally
-        {
-            _isRefreshing = false;
+                Text            = store.State.Title,
+                VerticalAlignment = VerticalAlignment.Center,
+                FontSize        = 11,
+                Foreground      = (Brush)FindResource("TextPrimaryBrush"),
+                MinWidth        = 40,
+                MaxWidth        = 150,
+                TextTrimming    = TextTrimming.CharacterEllipsis,
+                Margin          = new Thickness(0, 0, 4, 0)
+            };
+
+            var closeButton = new Button
+            {
+                Content         = "×",
+                Width           = 16,
+                Height          = 16,
+                FontSize        = 10,
+                Background      = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Foreground      = (Brush)FindResource("TextSecondaryBrush"),
+                Cursor          = Cursors.Hand,
+                Focusable       = false,
+                VerticalAlignment = VerticalAlignment.Center,
+                Tag             = tabId
+            };
+            closeButton.Click += (s, e) => _tabs.CloseTab(tabId);
+
+            var stack = new StackPanel
+            {
+                Orientation      = Orientation.Horizontal,
+                VerticalAlignment = VerticalAlignment.Center
+            };
+            stack.Children.Add(titleBlock);
+            stack.Children.Add(closeButton);
+
+            var border = new Border
+            {
+                Padding    = new Thickness(8, 0, 4, 0),
+                Height     = 24,
+                Cursor     = Cursors.Hand,
+                CornerRadius = new CornerRadius(4, 4, 0, 0),
+                Margin     = new Thickness(1, 0, 0, 0),
+                Background = isActive
+                    ? (Brush)FindResource("SidebarBrush")
+                    : Brushes.Transparent,
+                Child      = stack,
+                Tag        = tabId
+            };
+            border.MouseLeftButtonDown += (s, e) =>
+            {
+                if (s is FrameworkElement fe && fe.Tag is Guid id)
+                    _tabs.SetActiveTab(id);
+            };
+
+            // Subscribe to title changes for this tab
+            var capturedTitle = titleBlock;
+            var capturedTabId = tabId;
+            store.StateChanged += s =>
+            {
+                if (s.TabId == capturedTabId)
+                    capturedTitle.Text = s.Title;
+            };
+
+            TabStripPanel.Children.Add(border);
         }
     }
+
+    // ── Helpers ────────────────────────────────────────────────────
 
     private FolderItem? FindFirstSelected()
     {
-        foreach (var item in Folders)
+        if (_tabs.ActiveTab == null) return null;
+
+        foreach (var item in _tabs.ActiveTab.Folders)
             if (item.IsSelected) return item;
         return null;
     }

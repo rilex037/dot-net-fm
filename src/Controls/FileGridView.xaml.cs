@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Windows;
@@ -14,18 +15,21 @@ namespace dot_net_fm;
 public partial class FileGridView : UserControl
 {
     public static readonly DependencyProperty FoldersProperty =
-        DependencyProperty.Register(nameof(Folders), typeof(ObservableCollection<FolderItem>), typeof(FileGridView));
+        DependencyProperty.Register(nameof(Folders), typeof(IEnumerable), typeof(FileGridView));
 
     public static readonly DependencyProperty InteractionServiceProperty =
         DependencyProperty.Register(nameof(InteractionService), typeof(FileInteractionService), typeof(FileGridView));
+
+    public static readonly DependencyProperty DragDropServiceProperty =
+        DependencyProperty.Register(nameof(DragDropService), typeof(DragDropService), typeof(FileGridView));
 
     public static readonly DependencyProperty IconSizeProperty =
         DependencyProperty.Register(nameof(IconSize), typeof(int), typeof(FileGridView), 
             new PropertyMetadata(64));
 
-    public ObservableCollection<FolderItem>? Folders
+    public IEnumerable? Folders
     {
-        get => (ObservableCollection<FolderItem>?)GetValue(FoldersProperty);
+        get => (IEnumerable?)GetValue(FoldersProperty);
         set => SetValue(FoldersProperty, value);
     }
 
@@ -33,6 +37,12 @@ public partial class FileGridView : UserControl
     {
         get => (FileInteractionService?)GetValue(InteractionServiceProperty);
         set => SetValue(InteractionServiceProperty, value);
+    }
+
+    public DragDropService? DragDropService
+    {
+        get => (DragDropService?)GetValue(DragDropServiceProperty);
+        set => SetValue(DragDropServiceProperty, value);
     }
 
     public int IconSize
@@ -72,6 +82,7 @@ public partial class FileGridView : UserControl
         }
 
         InteractionService?.HandleIconMouseDown(folderItem, FolderItemsControl, e);
+        DragDropService?.ArmDrag(e.GetPosition(null));
         e.Handled = true;
     }
 
@@ -87,6 +98,7 @@ public partial class FileGridView : UserControl
         }
 
         InteractionService?.HandleNameMouseDown(folderItem, FolderItemsControl, e);
+        DragDropService?.ArmDrag(e.GetPosition(null));
         e.Handled = true;
     }
 
@@ -128,16 +140,16 @@ public partial class FileGridView : UserControl
 
             Focus();
 
-            var folders = Folders ?? new ObservableCollection<FolderItem>();
-            InteractionService.CommitActiveRename(folders, FolderItemsControl);
-            return;
-        }
+        var folders = Folders as IEnumerable<FolderItem> ?? Enumerable.Empty<FolderItem>();
+        InteractionService.CommitActiveRename(folders, FolderItemsControl);
+        return;
+    }
 
-        Focus();
+    Focus();
 
-        var allFolders = Folders ?? new ObservableCollection<FolderItem>();
-        InteractionService.CommitActiveRename(allFolders, FolderItemsControl);
-        InteractionService.ClearAllSelections(allFolders);
+    var allFolders = Folders as IEnumerable<FolderItem> ?? Enumerable.Empty<FolderItem>();
+    InteractionService.CommitActiveRename(allFolders, FolderItemsControl);
+    InteractionService.ClearAllSelections(allFolders);
 
         var pos = e.GetPosition(SelectionCanvas);
         InteractionService.HandleRubberBandMouseDown(pos, SelectionCanvas, SelectionBorder);
@@ -147,15 +159,15 @@ public partial class FileGridView : UserControl
     {
         if (InteractionService == null) return;
 
-        if (Folders != null)
-            InteractionService.UpdateDrag(this, Folders);
+        if (Folders is IEnumerable<FolderItem> typedFolders)
+            DragDropService?.UpdateDrag(this, typedFolders);
 
         var pos = e.GetPosition(SelectionCanvas);
         InteractionService.HandleRubberBandMouseMove(pos, SelectionCanvas, SelectionBorder);
 
-        if (InteractionService.IsRubberBanding && Folders != null)
+        if (InteractionService.IsRubberBanding && Folders is IEnumerable<FolderItem> selectFolders)
         {
-            InteractionService.UpdateRubberBandSelection(Folders, FolderItemsControl, SelectionCanvas, SelectionBorder);
+            InteractionService.UpdateRubberBandSelection(selectFolders, FolderItemsControl, SelectionCanvas, SelectionBorder);
         }
     }
 
@@ -174,18 +186,18 @@ public partial class FileGridView : UserControl
 
         var clickedItem = InteractionService.GetItemAtPosition(e, FolderItemsControl);
 
-        if (clickedItem != null && Folders != null)
+        if (clickedItem != null && Folders is IEnumerable<FolderItem> rightFolders)
         {
             // If the clicked item is not part of the current selection, select only it
             if (!clickedItem.IsSelected)
             {
-                InteractionService.ClearAllSelections(Folders);
+                InteractionService.ClearAllSelections(rightFolders);
                 clickedItem.IsSelected = true;
             }
 
             // Collect all selected item paths
             var selectedPaths = new List<string>();
-            foreach (var item in Folders)
+            foreach (var item in rightFolders)
             {
                 if (item.IsSelected)
                     selectedPaths.Add(item.FullPath);
@@ -221,18 +233,18 @@ public partial class FileGridView : UserControl
 
     private void FileView_DragOver(object sender, DragEventArgs e)
     {
-        InteractionService?.HandleDragOver(e);
+        DragDropService?.HandleDragOver(e);
     }
 
     private void FileView_Drop(object sender, DragEventArgs e)
     {
-        if (InteractionService == null) return;
+        if (DragDropService == null || InteractionService == null) return;
 
         var pos = e.GetPosition(FolderItemsControl);
         var hitItem = InteractionService.GetItemAtPoint(pos, FolderItemsControl);
         string targetDir = (hitItem != null && hitItem.IsFolder) ? hitItem.FullPath : CurrentPath;
 
-        InteractionService.HandleDrop(e, targetDir);
+        DragDropService.HandleDrop(e, targetDir);
     }
 
 }

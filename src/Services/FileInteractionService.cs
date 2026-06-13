@@ -15,8 +15,9 @@ namespace dot_net_fm;
 /// <summary>
 /// Handles all file/folder item interactions:
 /// click selection, slow double-click rename, fast double-click open,
-/// rubber band selection, drag & drop, clipboard, and file operations.
+/// rubber band selection, clipboard, and file operations.
 /// Rename timer logic is delegated to <see cref="RenameManager"/>.
+/// Drag & drop is handled by <see cref="DragDropService"/>.
 /// </summary>
 public class FileInteractionService
 {
@@ -33,10 +34,6 @@ public class FileInteractionService
 
     // Rename state — delegated to RenameManager
     private readonly RenameManager _rename = new();
-
-    // Drag & drop state
-    private Point _dragStartPoint;
-    private bool _dragThresholdArmed;
 
     // Clipboard state — system clipboard is the source of truth for paths;
     // this flag tracks whether the last operation was cut (move) or copy.
@@ -56,8 +53,8 @@ public class FileInteractionService
     {
         if (folderItem.IsEditing) return;
 
-        var folders = (ObservableCollection<FolderItem>)itemsControl.ItemsSource;
-        CommitActiveRename(folders, itemsControl);
+        var folders = itemsControl.ItemsSource as IEnumerable<FolderItem>;
+        if (folders != null) CommitActiveRename(folders, itemsControl);
 
         int currentTick = Environment.TickCount;
         int delta = currentTick - _lastClickTick;
@@ -82,11 +79,10 @@ public class FileInteractionService
         else
         {
             _rename.CancelPending();
-            ClearAllSelections(folders);
+            if (folders != null) ClearAllSelections(folders);
             folderItem.IsSelected = true;
         }
 
-        ArmDrag(e.GetPosition(null));
         e.Handled = true;
     }
 
@@ -98,8 +94,8 @@ public class FileInteractionService
     {
         if (folderItem.IsEditing) return;
 
-        var folders = (ObservableCollection<FolderItem>)itemsControl.ItemsSource;
-        CommitActiveRename(folders, itemsControl);
+        var folders = itemsControl.ItemsSource as IEnumerable<FolderItem>;
+        if (folders != null) CommitActiveRename(folders, itemsControl);
         _rename.CancelPending();
 
         int currentTick = Environment.TickCount;
@@ -119,16 +115,15 @@ public class FileInteractionService
 
         if (!folderItem.IsSelected)
         {
-            ClearAllSelections(folders);
+            if (folders != null) ClearAllSelections(folders);
             folderItem.IsSelected = true;
         }
 
-        ArmDrag(e.GetPosition(null));
         e.Handled = true;
     }
 
     /// <summary>Clears all selections in the given folder collection.</summary>
-    public void ClearAllSelections(ObservableCollection<FolderItem> folders)
+    public void ClearAllSelections(IEnumerable<FolderItem> folders)
     {
         foreach (var item in folders)
             item.IsSelected = false;
@@ -205,7 +200,7 @@ public class FileInteractionService
     /// Commits any active rename across the provided folder collection.
     /// Uses <see cref="RenameManager"/> to find the active item in O(1).
     /// </summary>
-    public void CommitActiveRename(ObservableCollection<FolderItem> folders, ItemsControl? itemsControl)
+    public void CommitActiveRename(IEnumerable<FolderItem> folders, ItemsControl? itemsControl)
     {
         _rename.CommitActive(itemsControl, CommitRename);
     }
@@ -260,7 +255,6 @@ public class FileInteractionService
     public void HandleRubberBandMouseDown(Point position, Canvas selectionCanvas, Border selectionBorder)
     {
         _rename.CancelPending();
-        _dragThresholdArmed = false;
 
         _rubberBandStart = position;
         _isRubberBanding = false;
@@ -322,7 +316,7 @@ public class FileInteractionService
     }
 
     public void UpdateRubberBandSelection(
-        ObservableCollection<FolderItem> folders,
+        IEnumerable<FolderItem> folders,
         ItemsControl itemsControl,
         Canvas selectionCanvas,
         Border selectionBorder)
@@ -345,62 +339,9 @@ public class FileInteractionService
         }
     }
 
-    // ──────────────────────────── Drag & Drop ──────────────────────────────
-
-    public void ArmDrag(Point screenPosition)
-    {
-        _dragStartPoint = screenPosition;
-        _dragThresholdArmed = true;
-    }
-
-    public bool UpdateDrag(DependencyObject dragSource, ObservableCollection<FolderItem> folders)
-    {
-        if (!_dragThresholdArmed || Mouse.LeftButton != MouseButtonState.Pressed)
-        {
-            _dragThresholdArmed = false;
-            return false;
-        }
-
-        var currentPos = Mouse.GetPosition(null);
-        double dx = Math.Abs(currentPos.X - _dragStartPoint.X);
-        double dy = Math.Abs(currentPos.Y - _dragStartPoint.Y);
-
-        if (dx < 4 && dy < 4)
-            return false;
-
-        _dragThresholdArmed = false;
-        _rename.CancelPending();
-
-        var paths = GetSelectedPaths(folders);
-        if (paths.Count == 0) return false;
-
-        var data = new DataObject(DataFormats.FileDrop, paths);
-        var result = DragDrop.DoDragDrop(dragSource, data, DragDropEffects.Move | DragDropEffects.Copy);
-        return result == DragDropEffects.Move;
-    }
-
-    public void HandleDragOver(DragEventArgs e)
-    {
-        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
-            ? DragDropEffects.Move | DragDropEffects.Copy
-            : DragDropEffects.None;
-        e.Handled = true;
-    }
-
-    public void HandleDrop(DragEventArgs e, string targetDirectory)
-    {
-        if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
-
-        var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
-        if (paths == null || paths.Length == 0) return;
-
-        TransferFiles(paths, targetDirectory, forceCopy: false);
-        e.Handled = true;
-    }
-
     // ──────────────────────────── Clipboard ────────────────────────────────
 
-    public void HandleCopy(ObservableCollection<FolderItem> folders)
+    public void HandleCopy(IEnumerable<FolderItem> folders)
     {
         var paths = GetSelectedPaths(folders);
         if (paths.Count == 0) return;
@@ -409,7 +350,7 @@ public class FileInteractionService
         Clipboard.SetFileDropList(CreateStringCollection(paths));
     }
 
-    public void HandleCut(ObservableCollection<FolderItem> folders)
+    public void HandleCut(IEnumerable<FolderItem> folders)
     {
         var paths = GetSelectedPaths(folders);
         if (paths.Count == 0) return;
@@ -442,7 +383,7 @@ public class FileInteractionService
     /// Set <paramref name="forceCopy"/> to always copy (used by paste-after-copy).
     /// Duplicate names get a numeric suffix ("file - 1", "file - 2").
     /// </summary>
-    private void TransferFiles(string[] sources, string targetDir, bool forceCopy)
+    public void TransferFiles(string[] sources, string targetDir, bool forceCopy)
     {
         foreach (var source in sources)
         {
@@ -479,7 +420,7 @@ public class FileInteractionService
 
     // ──────────────────────────── Helpers ──────────────────────────────────
 
-    private static List<string> GetSelectedPaths(ObservableCollection<FolderItem> folders)
+    private static List<string> GetSelectedPaths(IEnumerable<FolderItem> folders)
     {
         var paths = new List<string>();
         foreach (var item in folders)

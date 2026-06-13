@@ -13,6 +13,8 @@ public partial class StatusLayout : UserControl
     /// <summary>Raised when the zoom slider changes. The int is the icon pixel size (24, 32, 48, 64, 128, 256).</summary>
     public event Action<int>? ZoomChanged;
 
+    private bool _suppressZoomChanged;
+
     public StatusLayout()
     {
         InitializeComponent();
@@ -28,6 +30,20 @@ public partial class StatusLayout : UserControl
             StatusTextBlock.Text = status;
     }
 
+    /// <summary>
+    /// Sets the zoom slider to the given icon pixel size without firing <see cref="ZoomChanged"/>.
+    /// Used when switching tabs to reflect the target tab's zoom level.
+    /// </summary>
+    public void SetZoomForIconSize(int iconSize)
+    {
+        int index = Array.IndexOf(IconSizeStepConverter.Sizes, iconSize);
+        if (index < 0) index = 3; // fallback to 64px
+
+        _suppressZoomChanged = true;
+        ZoomSlider.Value = index;
+        _suppressZoomChanged = false;
+    }
+
     private void ZoomSlider_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         // Jump to nearest step on track click (exclude thumb area)
@@ -40,7 +56,7 @@ public partial class StatusLayout : UserControl
 
     private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
-        if (ZoomSlider == null) return;
+        if (ZoomSlider == null || _suppressZoomChanged) return;
 
         int index = (int)Math.Round(ZoomSlider.Value);
         index = Math.Clamp(index, 0, IconSizeStepConverter.Sizes.Length - 1);

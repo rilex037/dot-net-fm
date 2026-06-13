@@ -49,6 +49,7 @@ public class NavigationService
         }
 
         _currentPath = targetPath;
+        NavStateChanged?.Invoke();
         DirectoryLoaded?.Invoke(targetPath);
     }
 
@@ -171,6 +172,7 @@ public class NavigationService
         if (_backStack.Count == 0) return false;
         _forwardStack.Push(_currentPath);
         _currentPath = _backStack.Pop();
+        NavStateChanged?.Invoke();
         DirectoryLoaded?.Invoke(_currentPath);
         return true;
     }
@@ -180,6 +182,7 @@ public class NavigationService
         if (_forwardStack.Count == 0) return false;
         _backStack.Push(_currentPath);
         _currentPath = _forwardStack.Pop();
+        NavStateChanged?.Invoke();
         DirectoryLoaded?.Invoke(_currentPath);
         return true;
     }
@@ -189,6 +192,7 @@ public class NavigationService
         var parent = Directory.GetParent(_currentPath);
         if (parent == null) return false;
         NavigateTo(parent.FullName);
+        NavStateChanged?.Invoke();
         return true;
     }
 
