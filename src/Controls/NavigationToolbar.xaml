@@ -101,7 +101,7 @@
                 VerticalAlignment="Center" Margin="{StaticResource SpacingAddressBarMargin}"
                 BorderThickness="1" BorderBrush="Transparent">
             <TextBox x:Name="AddressBarTextBox" Background="Transparent" BorderThickness="0"
-                     Foreground="{StaticResource TextPrimaryBrush}" FontSize="12"
+                     Foreground="{StaticResource TextPrimaryBrush}" FontSize="{StaticResource FontAddressSize}"
                      VerticalContentAlignment="Center" Padding="{StaticResource SpacingAddressBarPadding}"
                      CaretBrush="{StaticResource AccentBrush}"
                      GotFocus="AddressBarTextBox_GotFocus"

@@ -43,11 +43,11 @@
         </StackPanel>
 
         <!-- Status text -->
-        <TextBlock x:Name="StatusTextBlock" Grid.Column="1" Text="" FontSize="11" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+        <TextBlock x:Name="StatusTextBlock" Grid.Column="1" Text="" FontSize="{StaticResource FontStatusSize}" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
         <!-- Zoom slider (bottom-right) — steps: 24, 32, 48, 64, 128, 256 -->
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource SpacingZoomGroupMargin}">
-            <Slider x:Name="ZoomSlider" Width="80" Height="14" Background="Transparent" BorderThickness="0"
+            <Slider x:Name="ZoomSlider" Width="80" Height="20" Background="Transparent" BorderThickness="0"
                     ValueChanged="ZoomSlider_ValueChanged"
                     Style="{StaticResource ZoomSliderStyle}"/>
         </StackPanel>

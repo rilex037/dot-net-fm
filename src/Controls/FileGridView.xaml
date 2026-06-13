@@ -120,7 +120,7 @@
 
                                 <TextBlock x:Name="NameText"
                                            Text="{Binding Name}"
-                                           FontSize="11"
+                                           FontSize="{StaticResource FontFileNameSize}"
                                            Foreground="{StaticResource TextPrimaryBrush}"
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
@@ -144,7 +144,7 @@
                                          Foreground="{StaticResource TextPrimaryBrush}"
                                          BorderBrush="{StaticResource IconBrush}"
                                          BorderThickness="1"
-                                         FontSize="11"
+                                         FontSize="{StaticResource FontFileNameSize}"
                                          Padding="{StaticResource SpacingCompactPadding}"
                                          HorizontalAlignment="Stretch"
                                          VerticalContentAlignment="Center"
@@ -163,7 +163,7 @@
                                 </TextBox>
 
                                 <TextBlock Text="{Binding ItemCount}"
-                                           FontSize="10"
+                                           FontSize="{StaticResource FontFileDetailsSize}"
                                            Foreground="{StaticResource TextSecondaryBrush}"
                                            TextWrapping="Wrap"
                                            HorizontalAlignment="Center"

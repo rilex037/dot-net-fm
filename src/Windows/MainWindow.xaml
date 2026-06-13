@@ -62,7 +62,7 @@
     </Window.CommandBindings>
 
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="30" GlassFrameThickness="0" CornerRadius="20" ResizeBorderThickness="6"/>
+        <WindowChrome CaptionHeight="{StaticResource SizeTitleBarHeight}" GlassFrameThickness="0" CornerRadius="20" ResizeBorderThickness="6"/>
     </WindowChrome.WindowChrome>
 
     <Grid>

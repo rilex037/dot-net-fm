@@ -86,7 +86,7 @@
     "NavGroupLeftMargin": "6,0,0,0",
     "StatusBarIconMargin": "6,0,0,0",
     "StatusBarButtonMargin": "2,0,2,0",
-    "ZoomGroupMargin": "0,0,12,0",
+    "ZoomGroupMargin": "0,0,20,0",
     "IconBottomMargin": "0,0,0,8",
     "ItemCountMargin": "0,2,0,0"
   },
@@ -119,6 +119,29 @@
     "StrokeThickness": 1,
     "StrokeThicknessBold": 1.5,
     "StrokeThicknessThick": 2
+  },
+  "Fonts": {
+    "MenuSize": 12,
+    "MenuWeight": "Normal",
+    "ContextMenuSize": 12,
+    "ContextMenuWeight": "Normal",
+    "ContextMenuShortcutSize": 11,
+    "SectionHeaderSize": 11,
+    "SectionHeaderWeight": "Bold",
+    "SidebarItemSize": 12,
+    "SidebarItemWeight": "Normal",
+    "FileNameSize": 11,
+    "FileNameWeight": "Normal",
+    "FileDetailsSize": 10,
+    "FileDetailsWeight": "Normal",
+    "TitleSize": 12,
+    "TitleWeight": "SemiBold",
+    "StatusSize": 11,
+    "StatusWeight": "Normal",
+    "AddressSize": 12,
+    "AddressWeight": "Normal",
+    "TabTitleSize": 11,
+    "TabCloseSize": 10
   },
   "Opacity": {
     "Disabled": 0.3

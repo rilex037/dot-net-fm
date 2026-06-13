@@ -40,7 +40,8 @@
 
         <Style x:Key="DropItem" TargetType="MenuItem">
             <Setter Property="Foreground"       Value="{StaticResource TextPrimaryBrush}"/>
-            <Setter Property="FontSize"         Value="12"/>
+            <Setter Property="FontSize"         Value="{StaticResource FontContextMenuSize}"/>
+            <Setter Property="FontWeight"       Value="{StaticResource FontContextMenuWeight}"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -68,7 +69,7 @@
                                 <TextBlock Grid.Column="2"
                                            Text="{Binding InputGestureText, RelativeSource={RelativeSource TemplatedParent}}"
                                            Foreground="{StaticResource TextSecondaryBrush}"
-                                           FontSize="11"
+                                           FontSize="{StaticResource FontContextMenuShortcutSize}"
                                            VerticalAlignment="Center"
                                            Margin="16,0,0,0"/>
                             </Grid>
@@ -89,7 +90,8 @@
 
         <Style x:Key="TopItem" TargetType="MenuItem">
             <Setter Property="Foreground"       Value="{StaticResource TextPrimaryBrush}"/>
-            <Setter Property="FontSize"         Value="12"/>
+            <Setter Property="FontSize"         Value="{StaticResource FontMenuSize}"/>
+            <Setter Property="FontWeight"       Value="{StaticResource FontMenuWeight}"/>
             <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
             <Setter Property="Template">
                 <Setter.Value>

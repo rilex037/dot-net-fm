@@ -25,8 +25,8 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="&#x25BE;" FontSize="10" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <TextBlock Grid.Column="1" Text="MY COMPUTER" FontSize="11" FontWeight="Bold" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="&#x25BE;" FontSize="{StaticResource FontSectionHeaderSize}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <TextBlock Grid.Column="1" Text="MY COMPUTER" FontSize="{StaticResource FontSectionHeaderSize}" FontWeight="{StaticResource FontSectionHeaderWeight}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center"/>
                 </Grid>
                 <ItemsControl ItemsSource="{Binding MyComputerItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <ItemsControl.ItemTemplate>
@@ -39,7 +39,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="{StaticResource FontSidebarItemSize}" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -54,8 +54,8 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="&#x25BE;" FontSize="10" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <TextBlock Grid.Column="1" Text="NETWORK" FontSize="11" FontWeight="Bold" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="&#x25BE;" FontSize="{StaticResource FontSectionHeaderSize}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <TextBlock Grid.Column="1" Text="NETWORK" FontSize="{StaticResource FontSectionHeaderSize}" FontWeight="{StaticResource FontSectionHeaderWeight}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center"/>
                 </Grid>
                 <ItemsControl ItemsSource="{Binding NetworkItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <ItemsControl.ItemTemplate>
@@ -68,7 +68,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="{StaticResource FontSidebarItemSize}" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -83,8 +83,8 @@
                         <ColumnDefinition Width="Auto"/>
                         <ColumnDefinition Width="*"/>
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="&#x25BE;" FontSize="10" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <TextBlock Grid.Column="1" Text="BOOKMARKS" FontSize="11" FontWeight="Bold" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="0" Text="&#x25BE;" FontSize="{StaticResource FontSectionHeaderSize}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <TextBlock Grid.Column="1" Text="BOOKMARKS" FontSize="{StaticResource FontSectionHeaderSize}" FontWeight="{StaticResource FontSectionHeaderWeight}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center"/>
                 </Grid>
                 <ItemsControl ItemsSource="{Binding BookmarkItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
                     <ItemsControl.ItemTemplate>
@@ -97,7 +97,7 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
                                     <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="{StaticResource FontSidebarItemSize}" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
                                 </Grid>
                             </Border>
                         </DataTemplate>

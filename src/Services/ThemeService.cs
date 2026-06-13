@@ -96,6 +96,31 @@ public static class ThemeService
             }
         }
 
+        // --- Fonts -> double size + FontWeight ---
+        foreach (var kvp in config.Fonts)
+        {
+            string key = "Font" + kvp.Key;
+            if (resources.Contains(key))
+                continue;
+
+            if (kvp.Value.ValueKind == JsonValueKind.Number)
+            {
+                resources.Add(key, kvp.Value.GetDouble());
+            }
+            else if (kvp.Value.ValueKind == JsonValueKind.String)
+            {
+                string? val = kvp.Value.GetString();
+                if (val != null)
+                {
+                    // Register FontWeight resources
+                    if (kvp.Key.EndsWith("Weight", StringComparison.Ordinal))
+                    {
+                        resources.Add(key, ConvertFontWeight(val));
+                    }
+                }
+            }
+        }
+
         // --- Opacity -> double ---
         foreach (var kvp in config.Opacity)
         {
@@ -149,6 +174,27 @@ public static class ThemeService
 
         return null;
     }
+
+    /// <summary>
+    /// Converts a font weight string (e.g. "Normal", "Bold", "SemiBold") to a FontWeight.
+    /// </summary>
+    private static FontWeight ConvertFontWeight(string weight)
+    {
+        return weight.ToLowerInvariant() switch
+        {
+            "thin" => FontWeights.Thin,
+            "extralight" => FontWeights.ExtraLight,
+            "light" => FontWeights.Light,
+            "normal" => FontWeights.Normal,
+            "medium" => FontWeights.Medium,
+            "semibold" => FontWeights.SemiBold,
+            "bold" => FontWeights.Bold,
+            "extrabold" => FontWeights.ExtraBold,
+            "black" => FontWeights.Black,
+            "extrablack" => FontWeights.ExtraBlack,
+            _ => FontWeights.Normal,
+        };
+    }
 }
 
 /// <summary>
@@ -162,5 +208,6 @@ public class ThemeConfig
     public Dictionary<string, double> Radius { get; set; } = new();
     public Dictionary<string, JsonElement> Spacing { get; set; } = new();
     public Dictionary<string, JsonElement> Sizing { get; set; } = new();
+    public Dictionary<string, JsonElement> Fonts { get; set; } = new();
     public Dictionary<string, JsonElement> Opacity { get; set; } = new();
 }

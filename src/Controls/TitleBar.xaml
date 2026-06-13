@@ -48,11 +48,11 @@
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
-        <TextBlock x:Name="TitleTextBlock" Grid.Column="0" Text="Home" FontSize="12"
+        <TextBlock x:Name="TitleTextBlock" Grid.Column="0" Text="Home" FontSize="{StaticResource FontTitleSize}" FontWeight="{StaticResource FontTitleWeight}"
                    Foreground="{StaticResource TextPrimaryBrush}"
                    HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False"/>
 
-        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
 
             <Button Width="{StaticResource SizeButtonWidth}" Height="{StaticResource SizeButtonHeight}"
                     Style="{StaticResource ChromeButtonStyle}"

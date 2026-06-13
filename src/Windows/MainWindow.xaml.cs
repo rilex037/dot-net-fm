@@ -360,7 +360,7 @@ public partial class MainWindow : Window
             {
                 Text            = store.State.Title,
                 VerticalAlignment = VerticalAlignment.Center,
-                FontSize        = 11,
+                FontSize        = (double)FindResource("FontTabTitleSize"),
                 Foreground      = (Brush)FindResource("TextPrimaryBrush"),
                 MinWidth        = 40,
                 MaxWidth        = 150,
@@ -373,7 +373,7 @@ public partial class MainWindow : Window
                 Content         = "×",
                 Width           = 16,
                 Height          = 16,
-                FontSize        = 10,
+                FontSize        = (double)FindResource("FontTabCloseSize"),
                 Background      = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 Foreground      = (Brush)FindResource("TextSecondaryBrush"),
