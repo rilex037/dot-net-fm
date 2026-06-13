@@ -150,16 +150,20 @@ public class NavigationService
             catch { }
         }
 
-        // Default sort: folders first, then by extension, then by name (case-insensitive).
+        // Default sort: folders first, then by extension (files only), then by name (case-insensitive).
         items.Sort((a, b) =>
         {
             int folderCmp = -a.IsFolder.CompareTo(b.IsFolder); // true (folder) before false (file)
             if (folderCmp != 0) return folderCmp;
 
-            string extA = Path.GetExtension(a.Name);
-            string extB = Path.GetExtension(b.Name);
-            int extCmp = string.Compare(extA, extB, StringComparison.OrdinalIgnoreCase);
-            if (extCmp != 0) return extCmp;
+            // Extension sorting only applies to files; folder names can contain dots
+            if (!a.IsFolder)
+            {
+                string extA = Path.GetExtension(a.Name);
+                string extB = Path.GetExtension(b.Name);
+                int extCmp = string.Compare(extA, extB, StringComparison.OrdinalIgnoreCase);
+                if (extCmp != 0) return extCmp;
+            }
 
             return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
         });
