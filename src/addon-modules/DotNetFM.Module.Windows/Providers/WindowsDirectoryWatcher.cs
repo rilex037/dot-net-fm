@@ -11,7 +11,7 @@ public sealed class WindowsDirectoryWatcher : IDirectoryWatcher
 {
     private FileSystemWatcher? _watcher;
     private readonly DispatcherTimer _debounceTimer;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     /// <summary>Fired on file system changes in the watched directory (debounced).</summary>
     public event Action? DirectoryChanged;
@@ -82,6 +82,7 @@ public sealed class WindowsDirectoryWatcher : IDirectoryWatcher
     {
         if (_disposed) return;
         _disposed = true;
+        _debounceTimer.Tick -= OnDebounceTick;
         Stop();
     }
 }

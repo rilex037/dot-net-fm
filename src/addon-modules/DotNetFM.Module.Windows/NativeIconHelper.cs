@@ -99,12 +99,13 @@ public static class NativeIconHelper
     /// Falls back to hi-res shell icon. Every call fetches from the shell — no cache.
     /// Concurrency is capped to 4 simultaneous shell calls.
     /// </summary>
-    public static async Task<BitmapSource?> GetThumbnailAsync(string filePath, int requestedSize)
+    public static async Task<BitmapSource?> GetThumbnailAsync(string filePath, int requestedSize, CancellationToken cancellationToken = default)
     {
-        await ThumbnailGate.WaitAsync().ConfigureAwait(false);
+        await ThumbnailGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await Task.Run(() => FetchThumbnailOrHiResIcon(filePath, requestedSize)).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return await Task.Run(() => FetchThumbnailOrHiResIcon(filePath, requestedSize), cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -121,13 +122,20 @@ public static class NativeIconHelper
             SHCreateItemFromParsingName(path, IntPtr.Zero, ref IID_IShellItemImageFactory, out var obj);
             if (obj is IShellItemImageFactory factory)
             {
-                int hr = factory.GetImage(new SIZE { cx = size, cy = size },
-                    SIIGBF.BiggerSizeOk | SIIGBF.IconOnly, out var hBitmap);
-
-                if (hr == 0 && hBitmap != IntPtr.Zero)
+                try
                 {
-                    var bs = HBitmapToBitmapSource(hBitmap);
-                    if (bs != null) return bs;
+                    int hr = factory.GetImage(new SIZE { cx = size, cy = size },
+                        SIIGBF.BiggerSizeOk | SIIGBF.IconOnly, out var hBitmap);
+
+                    if (hr == 0 && hBitmap != IntPtr.Zero)
+                    {
+                        var bs = HBitmapToBitmapSource(hBitmap);
+                        if (bs != null) return bs;
+                    }
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(factory);
                 }
             }
         }
@@ -144,13 +152,20 @@ public static class NativeIconHelper
             SHCreateItemFromParsingName(filePath, IntPtr.Zero, ref IID_IShellItemImageFactory, out var obj);
             if (obj is IShellItemImageFactory factory)
             {
-                int hr = factory.GetImage(new SIZE { cx = requestedSize, cy = requestedSize },
-                    SIIGBF.BiggerSizeOk | SIIGBF.ResizeToFit, out var hBitmap);
-
-                if (hr == 0 && hBitmap != IntPtr.Zero)
+                try
                 {
-                    var bs = HBitmapToBitmapSource(hBitmap);
-                    if (bs != null) return bs;
+                    int hr = factory.GetImage(new SIZE { cx = requestedSize, cy = requestedSize },
+                        SIIGBF.BiggerSizeOk | SIIGBF.ResizeToFit, out var hBitmap);
+
+                    if (hr == 0 && hBitmap != IntPtr.Zero)
+                    {
+                        var bs = HBitmapToBitmapSource(hBitmap);
+                        if (bs != null) return bs;
+                    }
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(factory);
                 }
             }
         }

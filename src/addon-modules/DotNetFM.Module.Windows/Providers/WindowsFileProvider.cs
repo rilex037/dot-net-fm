@@ -26,14 +26,14 @@ public sealed class WindowsFileProvider : IFileProvider
 
         return await Task.Run(() =>
         {
-            cancellationToken.ThrowIfCancellationRequested();
             var items = new List<FolderItem>();
 
             try
             {
-                // Read directories
-                foreach (var dir in Directory.GetDirectories(path))
+                // Read directories — streaming, no upfront array allocation
+                foreach (var dir in Directory.EnumerateDirectories(path))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
                         var di = new DirectoryInfo(dir);
@@ -43,7 +43,7 @@ public sealed class WindowsFileProvider : IFileProvider
                         string itemCount;
                         try
                         {
-                            int n = Directory.GetFileSystemEntries(dir).Length;
+                            int n = Directory.EnumerateFileSystemEntries(dir).Count();
                             itemCount = $"{n} item{(n == 1 ? "" : "s")}";
                         }
                         catch { itemCount = "Folder"; }
@@ -53,9 +53,10 @@ public sealed class WindowsFileProvider : IFileProvider
                     catch { }
                 }
 
-                // Read files
-                foreach (var file in Directory.GetFiles(path))
+                // Read files — streaming, no upfront array allocation
+                foreach (var file in Directory.EnumerateFiles(path))
                 {
+                    cancellationToken.ThrowIfCancellationRequested();
                     try
                     {
                         var fi = new FileInfo(file);
@@ -65,7 +66,9 @@ public sealed class WindowsFileProvider : IFileProvider
                         items.Add(new FolderItem
                         {
                             Name = fi.Name,
-                            ItemCount = $"{fi.Length / 1024} KB",
+                            ItemCount = fi.Length < 1024
+                                ? $"{fi.Length} B"
+                                : $"{fi.Length / 1024} KB",
                             FullPath = file,
                             IsFolder = false
                         });
@@ -90,6 +93,7 @@ public sealed class WindowsFileProvider : IFileProvider
                     return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
                 });
             }
+            catch (OperationCanceledException) { throw; }
             catch { }
 
             return new FileResult
@@ -148,7 +152,7 @@ public sealed class WindowsFileProvider : IFileProvider
                 continue;
             if (!drive.IsReady) continue;
 
-            string root = drive.RootDirectory.FullName;
+            string root = drive.RootDirectory.FullName.TrimEnd('\\');
             string displayName = string.IsNullOrEmpty(drive.VolumeLabel)
                 ? root
                 : $"{drive.VolumeLabel} ({root})";

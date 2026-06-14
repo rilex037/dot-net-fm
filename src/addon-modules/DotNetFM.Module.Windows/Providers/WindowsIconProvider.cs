@@ -10,7 +10,7 @@ public sealed class WindowsIconProvider : IIconProvider
 {
     public Task<BitmapSource?> GetThumbnailAsync(string path, int requestedSize, CancellationToken cancellationToken = default)
     {
-        return NativeIconHelper.GetThumbnailAsync(path, requestedSize);
+        return NativeIconHelper.GetThumbnailAsync(path, requestedSize, cancellationToken);
     }
 
     public BitmapSource? GetIconForFile(string filePath)

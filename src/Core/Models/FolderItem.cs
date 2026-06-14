@@ -82,6 +82,7 @@ public sealed class FolderItem : INotifyPropertyChanged, IDisposable
     public void CancelIconLoad()
     {
         _iconCts?.Cancel();
+        _iconCts?.Dispose();
         _iconCts = null;
     }
 
