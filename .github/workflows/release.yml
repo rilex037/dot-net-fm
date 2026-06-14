@@ -1,0 +1,55 @@
+name: Release
+
+on:
+  push:
+    branches: [release]
+
+jobs:
+  build-and-release:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Extract version and changelog from commit
+        shell: pwsh
+        run: |
+          $commitMsg = git log -1 --format="%s`n%b"
+          $lines = $commitMsg -split "`n"
+          $version = $lines[0].Trim()
+          $changelog = ($lines[1..($lines.Length-1)] | Where-Object { $_.Trim() -ne "" }) -join "`n"
+          echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          echo "CHANGELOG<<EOF" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          echo "$changelog" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          echo "EOF" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+
+      - name: Restore dependencies
+        run: dotnet restore dot-net-fm.csproj
+
+      - name: Build & publish
+        run: |
+          dotnet publish dot-net-fm.csproj `
+            -c Release `
+            -r win-x64 `
+            --self-contained false `
+            -o publish/DotNetFM
+
+      - name: Zip published output
+        shell: pwsh
+        run: |
+          Compress-Archive -Path publish/DotNetFM/* -DestinationPath "DotNetFM-$env:VERSION.zip"
+
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          tag_name: ${{ env.VERSION }}
+          name: ${{ env.VERSION }}
+          body: ${{ env.CHANGELOG }}
+          files: DotNetFM-${{ env.VERSION }}.zip
+          generate_release_notes: false
