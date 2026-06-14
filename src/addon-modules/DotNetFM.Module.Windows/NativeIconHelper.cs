@@ -56,7 +56,7 @@ public static class NativeIconHelper
     // NOT readonly — passed as 'ref' to SHCreateItemFromParsingName, which requires a writable reference
     private static Guid IID_IShellItemImageFactory = new("BCC18B79-BA16-442F-80C4-8A59C30C463B");
 
-    // ── Win32 — SHGetFileInfo (fallback 32�-32 icon) ──────────────────────────
+    // ── Win32 — SHGetFileInfo (fallback 32×32 icon) ──────────────────────────
 
     [DllImport("shell32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes,
@@ -81,7 +81,7 @@ public static class NativeIconHelper
     // ── Public API (no caching — fresh shell call every time) ────────────────
 
     /// <summary>
-    /// Fast synchronous 32�-32 icon for a file via SHGetFileInfo.
+    /// Fast synchronous 32×32 icon for a file via SHGetFileInfo.
     /// Every call fetches from the shell — no cache.
     /// </summary>
     public static BitmapSource? GetIconForFile(string filePath)
@@ -133,7 +133,7 @@ public static class NativeIconHelper
         }
         catch { }
 
-        // Fallback — 32�-32 from SHGetFileInfo
+        // Fallback — 32×32 from SHGetFileInfo
         return FetchIconViaShgfi(path, FILE_ATTRIBUTE_DIR, useAttribs: false);
     }
 

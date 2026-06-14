@@ -29,9 +29,15 @@ jobs:
           echo "EOF" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Restore dependencies
-        run: dotnet restore dot-net-fm.csproj
+        run: |
+          dotnet restore src/Core/DotNetFM.Core.csproj
+          dotnet restore src/addon-modules/DotNetFM.Module.Windows/DotNetFM.Module.Windows.csproj
+          dotnet restore dot-net-fm.csproj
 
-      - name: Build & publish
+      - name: Build module
+        run: dotnet build src/addon-modules/DotNetFM.Module.Windows/DotNetFM.Module.Windows.csproj -c Release
+
+      - name: Build & publish app
         run: |
           dotnet publish dot-net-fm.csproj `
             -c Release `

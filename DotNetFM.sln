@@ -1,0 +1,33 @@
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.0.31903.59
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "dot-net-fm", "dot-net-fm.csproj", "{C506B395-F9EB-4475-8406-7AC44EB5C21C}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetFM.Core", "src\Core\DotNetFM.Core.csproj", "{A33A2AC7-673A-49CF-B25B-2B00F4FD26A2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DotNetFM.Module.Windows", "src\addon-modules\DotNetFM.Module.Windows\DotNetFM.Module.Windows.csproj", "{4AC2A604-CCFD-40D0-A686-69349A151686}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{C506B395-F9EB-4475-8406-7AC44EB5C21C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C506B395-F9EB-4475-8406-7AC44EB5C21C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C506B395-F9EB-4475-8406-7AC44EB5C21C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C506B395-F9EB-4475-8406-7AC44EB5C21C}.Release|Any CPU.Build.0 = Release|Any CPU
+		{A33A2AC7-673A-49CF-B25B-2B00F4FD26A2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A33A2AC7-673A-49CF-B25B-2B00F4FD26A2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A33A2AC7-673A-49CF-B25B-2B00F4FD26A2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A33A2AC7-673A-49CF-B25B-2B00F4FD26A2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{4AC2A604-CCFD-40D0-A686-69349A151686}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{4AC2A604-CCFD-40D0-A686-69349A151686}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{4AC2A604-CCFD-40D0-A686-69349A151686}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{4AC2A604-CCFD-40D0-A686-69349A151686}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+EndGlobal

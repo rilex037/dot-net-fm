@@ -18,7 +18,7 @@ public sealed class TabStore : IDisposable
 {
     private TabStateRecord _state;
     private readonly NavigationService _navigation;
-    private readonly DirectoryWatcherService _directoryWatcher;
+    private readonly IDirectoryWatcher _directoryWatcher;
     private readonly ObservableCollection<FolderItem> _folders;
     private CancellationTokenSource? _navCts;
 
@@ -37,10 +37,10 @@ public sealed class TabStore : IDisposable
 
     // ── Construction ───────────────────────────────────────────────
 
-    public TabStore(string userProfilePath)
+    public TabStore(string userProfilePath, IFileProvider fileProvider, IIconProvider? iconProvider, IDirectoryWatcher directoryWatcher)
     {
-        _navigation = new NavigationService(userProfilePath);
-        _directoryWatcher = new DirectoryWatcherService();
+        _navigation = new NavigationService(userProfilePath, fileProvider, iconProvider);
+        _directoryWatcher = directoryWatcher;
         _folders = new ObservableCollection<FolderItem>();
         Folders = new ReadOnlyObservableCollection<FolderItem>(_folders);
         _state = new TabStateRecord();

@@ -1,4 +1,3 @@
-using System;
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -25,6 +24,9 @@ public sealed class FolderItem : INotifyPropertyChanged, IDisposable
 
     private CancellationTokenSource? _iconCts;
     private bool _disposed;
+
+    /// <summary>Optional icon provider injected at creation time for async icon loading.</summary>
+    public IIconProvider? IconProvider { get; set; }
 
     public string Name
     {
@@ -85,12 +87,11 @@ public sealed class FolderItem : INotifyPropertyChanged, IDisposable
 
     /// <summary>
     /// Loads icon at the requested pixel size in single pass on bg thread.
-    /// Cancels if the provided <paramref name="navigationToken"/> is signalled
-    /// (user navigated away or zoom changed) or if this item is disposed.
+    /// Uses the injected <see cref="IconProvider"/>. If no provider is set, icon loading is skipped.
     /// </summary>
     public async void LoadIconAsync(CancellationToken navigationToken = default, int requestedSize = 256)
     {
-        if (_disposed || navigationToken.IsCancellationRequested) return;
+        if (_disposed || navigationToken.IsCancellationRequested || IconProvider == null) return;
 
         _iconCts?.Cancel();
         var cts = CancellationTokenSource.CreateLinkedTokenSource(navigationToken);
@@ -99,7 +100,7 @@ public sealed class FolderItem : INotifyPropertyChanged, IDisposable
 
         try
         {
-            var icon = await NativeIconHelper.GetThumbnailAsync(FullPath, requestedSize).ConfigureAwait(false);
+            var icon = await IconProvider.GetThumbnailAsync(FullPath, requestedSize, token).ConfigureAwait(false);
 
             if (token.IsCancellationRequested || _disposed) return;
             if (icon != null)
