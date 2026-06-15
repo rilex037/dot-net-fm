@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Discriminated union of all actions that can mutate a tab's state.

@@ -1,7 +1,7 @@
 using System.IO;
 using System.Windows.Threading;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Windows-specific IDirectoryWatcher implementation using FileSystemWatcher.

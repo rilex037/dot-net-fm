@@ -1,6 +1,6 @@
 using System.Windows.Media.Imaging;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// IIconProvider implementation using Windows Shell COM (IShellItemImageFactory)

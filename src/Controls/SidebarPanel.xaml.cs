@@ -5,7 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Sidebar panel that dynamically renders sections contributed by the active module.

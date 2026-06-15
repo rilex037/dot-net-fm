@@ -1,6 +1,6 @@
 using System;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Immutable snapshot of a tab's UI-facing state.

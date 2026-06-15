@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Provides context menu functionality for a specific backend.

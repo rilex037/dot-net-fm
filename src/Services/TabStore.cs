@@ -5,7 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Owns all mutable backing data for a single tab and exposes only an

@@ -3,14 +3,14 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Status bar displaying status text and zoom slider.
 /// </summary>
 public partial class StatusLayout : UserControl
 {
-    /// <summary>Raised when the zoom slider changes. The int is the icon pixel size (24, 32, 48, 64, 128, 256).</summary>
+    /// <summary>Raised when the zoom slider changes. The int is the icon pixel size (48, 64, 128, 256, 512).</summary>
     public event Action<int>? ZoomChanged;
 
     private bool _suppressZoomChanged;
@@ -36,8 +36,8 @@ public partial class StatusLayout : UserControl
     /// </summary>
     public void SetZoomForIconSize(int iconSize)
     {
-        int index = Array.IndexOf(IconSizeStepConverter.Sizes, iconSize);
-        if (index < 0) index = 3; // fallback to 64px
+        int index = Array.IndexOf(ZoomSizes.Sizes, iconSize);
+        if (index < 0) index = 1; // fallback to 64px
 
         _suppressZoomChanged = true;
         ZoomSlider.Value = index;
@@ -46,20 +46,15 @@ public partial class StatusLayout : UserControl
 
     private void ZoomSlider_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
-        // Jump to nearest step on track click (exclude thumb area)
         var pos = e.GetPosition(ZoomSlider);
-        double fraction = pos.X / ZoomSlider.ActualWidth;
-        int index = (int)Math.Round(fraction * (IconSizeStepConverter.Sizes.Length - 1));
-        index = Math.Clamp(index, 0, IconSizeStepConverter.Sizes.Length - 1);
-        ZoomSlider.Value = index;
+        ZoomSlider.Value = Math.Clamp((int)Math.Round(pos.X / ZoomSlider.ActualWidth * (ZoomSizes.Sizes.Length - 1)), 0, ZoomSizes.Sizes.Length - 1);
     }
 
     private void ZoomSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
     {
         if (ZoomSlider == null || _suppressZoomChanged) return;
 
-        int index = (int)Math.Round(ZoomSlider.Value);
-        index = Math.Clamp(index, 0, IconSizeStepConverter.Sizes.Length - 1);
-        ZoomChanged?.Invoke(IconSizeStepConverter.Sizes[index]);
+        int index = Math.Clamp((int)Math.Round(ZoomSlider.Value), 0, ZoomSizes.Sizes.Length - 1);
+        ZoomChanged?.Invoke(ZoomSizes.Sizes[index]);
     }
 }

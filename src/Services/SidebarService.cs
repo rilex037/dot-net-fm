@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Loads, saves, and resolves sidebar configuration from a JSON file.

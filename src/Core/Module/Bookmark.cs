@@ -1,4 +1,4 @@
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// A bookmarked location stored with its ModuleUri so the app knows

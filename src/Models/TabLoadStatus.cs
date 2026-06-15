@@ -1,4 +1,4 @@
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Represents the loading state of a tab's directory content.

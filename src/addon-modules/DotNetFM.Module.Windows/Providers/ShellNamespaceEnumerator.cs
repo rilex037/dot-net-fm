@@ -1,7 +1,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Enumerates children of any Windows Shell namespace folder identified by a

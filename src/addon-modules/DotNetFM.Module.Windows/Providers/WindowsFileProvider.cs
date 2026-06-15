@@ -1,6 +1,6 @@
 using System.IO;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Helpers for detecting and resolving Windows Shell CLSID virtual paths

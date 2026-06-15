@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using Microsoft.VisualBasic.FileIO;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Pure file-system operations: rename, delete (to recycle bin), transfer (copy/move).

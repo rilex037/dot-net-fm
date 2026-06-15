@@ -1,4 +1,4 @@
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// A section contributed by a module to the sidebar.

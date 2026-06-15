@@ -1,7 +1,7 @@
 using System;
 using System.IO;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 ///     Pure-function reducer that takes current TabStateRecord + TabAction

@@ -1,7 +1,7 @@
-<UserControl x:Class="dot_net_fm.FileGridView"
+<UserControl x:Class="DotNetFM.FileGridView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:dot_net_fm"
+             xmlns:local="clr-namespace:DotNetFM"
              Focusable="True">
 
     <UserControl.Resources>
@@ -83,7 +83,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="local:FolderItem">
                         <Border x:Name="ItemBorder" Cursor="Hand"
-                                Margin="{StaticResource SpacingItemMargin}" CornerRadius="{StaticResource CornerRadiusLarge}"
+                                Margin="{Binding ItemMargin, RelativeSource={RelativeSource AncestorType=local:FileGridView}}" CornerRadius="{StaticResource CornerRadiusLarge}"
                                 MouseLeftButtonDown="ItemBorder_MouseLeftButtonDown">
                             <Border.Style>
                                 <Style TargetType="Border">

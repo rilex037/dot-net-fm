@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Windows;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Interaction logic for App.xaml

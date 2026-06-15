@@ -1,4 +1,4 @@
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// A module provides file browsing capabilities for a specific backend

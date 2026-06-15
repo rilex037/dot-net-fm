@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Pure math for rubber-band selection rectangles.

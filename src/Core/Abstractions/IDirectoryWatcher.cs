@@ -1,4 +1,4 @@
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Watches a directory for file system changes and raises events when files are created, deleted, or renamed.

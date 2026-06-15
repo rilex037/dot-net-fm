@@ -1,7 +1,7 @@
 using System.IO;
 using System.Reflection;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Registry that discovers and manages modules. Scans assemblies for

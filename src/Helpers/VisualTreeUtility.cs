@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Shared helpers for visual tree traversal.

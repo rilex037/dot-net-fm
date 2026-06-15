@@ -1,4 +1,4 @@
-<UserControl x:Class="dot_net_fm.StatusLayout"
+<UserControl x:Class="DotNetFM.StatusLayout"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
@@ -45,7 +45,7 @@
         <!-- Status text -->
         <TextBlock x:Name="StatusTextBlock" Grid.Column="1" Text="" FontSize="{StaticResource FontStatusSize}" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-        <!-- Zoom slider (bottom-right) — steps: 24, 32, 48, 64, 128, 256 -->
+        <!-- Zoom slider (bottom-right) — steps: 48, 64, 128, 256, 512 -->
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource SpacingZoomGroupMargin}">
             <Slider x:Name="ZoomSlider" Width="80" Height="20" Background="Transparent" BorderThickness="0"
                     ValueChanged="ZoomSlider_ValueChanged"

@@ -1,7 +1,7 @@
 using System.IO;
 using System.Linq;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Windows file system module. Provides local filesystem browsing,

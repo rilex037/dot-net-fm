@@ -1,6 +1,6 @@
 using System.Collections.ObjectModel;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// View model for a sidebar section rendered by SidebarPanel.

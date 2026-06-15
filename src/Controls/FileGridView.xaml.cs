@@ -9,7 +9,7 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Grid view for displaying files and folders with interaction handling.
@@ -29,7 +29,24 @@ public partial class FileGridView : UserControl
 
     public static readonly DependencyProperty IconSizeProperty =
         DependencyProperty.Register(nameof(IconSize), typeof(int), typeof(FileGridView),
-            new PropertyMetadata(64));
+            new PropertyMetadata(64, OnIconSizeChanged));
+
+    public static readonly DependencyProperty ItemMarginProperty =
+        DependencyProperty.Register(nameof(ItemMargin), typeof(Thickness), typeof(FileGridView),
+            new PropertyMetadata(new Thickness(4)));
+
+    public Thickness ItemMargin
+    {
+        get => (Thickness)GetValue(ItemMarginProperty);
+        set => SetValue(ItemMarginProperty, value);
+    }
+
+    private static void OnIconSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        var grid = (FileGridView)d;
+        int m = (int)e.NewValue >= 128 ? 8 : 4;
+        grid.ItemMargin = new Thickness(m);
+    }
 
     public IEnumerable? Folders
     {

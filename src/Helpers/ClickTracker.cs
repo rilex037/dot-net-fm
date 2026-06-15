@@ -1,7 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Tracks mouse clicks to differentiate between single-click, slow double-click (rename),

@@ -3,7 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Root configuration for sidebar icon mappings.

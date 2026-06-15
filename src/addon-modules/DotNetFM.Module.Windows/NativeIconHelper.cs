@@ -6,7 +6,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Shell icon / thumbnail helper.

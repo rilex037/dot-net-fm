@@ -1,4 +1,4 @@
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Provides file listing and metadata for a specific backend (local FS, FTP, cloud, etc.).
