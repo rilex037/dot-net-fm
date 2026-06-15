@@ -29,6 +29,7 @@ public partial class MainWindow : Window
     private readonly ObservableCollection<SidebarItem.Item> _networkItems    = new();
     private readonly ObservableCollection<SidebarItem.Item> _bookmarkItems   = new();
 
+    private readonly string _userProfilePath;
     private TabStore? _subscribedTab;
     private readonly Dictionary<Guid, Action<TabStateRecord>> _tabTitleHandlers = new();
 
@@ -38,20 +39,36 @@ public partial class MainWindow : Window
         ((HwndSource)PresentationSource.FromVisual(this)).AddHook(WndProc);
     }
 
-    public MainWindow()
+    public MainWindow(string initialPath = "")
     {
         InitializeComponent();
 
-        string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+        // Resolve initial path: extract raw path from module URI (e.g. "windows://C:\Users" → "C:\Users")
+        var moduleUri = ModuleUri.Parse(initialPath);
+        string rawPath = moduleUri.Path;
+
+        // If no path provided or path doesn't exist, fall back to a sensible default
+        if (string.IsNullOrWhiteSpace(rawPath) || !System.IO.Directory.Exists(rawPath))
+        {
+            string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            if (!string.IsNullOrWhiteSpace(userProfilePath) && System.IO.Directory.Exists(userProfilePath))
+                rawPath = userProfilePath;
+            else
+                rawPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+        }
+
+        // Find the module that handles this path
+        var module = App.Modules.FindByPath(rawPath);
+        _userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         _interaction = new FileInteractionService();
-        _tabs        = new TabManager(userProfilePath);
+        _tabs        = new TabManager(rawPath, module);
 
         SidebarPanel.MyComputerItems = _myComputerItems;
         SidebarPanel.NetworkItems    = _networkItems;
         SidebarPanel.BookmarkItems   = _bookmarkItems;
 
-        InitializeSidebar(userProfilePath); // fix: pass in rather than recompute
+        InitializeSidebar(rawPath);
         WireUpSidebarAndNavEvents();
         WireUpZoomEvents();
         WireUpTabManagerEvents();
@@ -64,35 +81,46 @@ public partial class MainWindow : Window
 
     // ── Sidebar initialization ─────────────────────────────────────
 
-    private void InitializeSidebar(string userProfilePath)
+    private void InitializeSidebar(string initialPath)
     {
         SidebarItem config = SidebarService.Load();
         SidebarIconMapper.Initialize(config.SidebarIcons);
 
-        foreach (var section in config.Sections)
+        // Use module-contributed sidebar sections instead of static config sections
+        var module = App.Modules.FindByPath(initialPath);
+        var sections = module?.GetSidebarSections()
+            .OrderBy(s => s.Order)
+            .ToList();
+
+        if (sections != null)
         {
-            var target = section.Name.Equals("Network", StringComparison.OrdinalIgnoreCase)
-                ? _networkItems
-                : _myComputerItems;
-
-            foreach (var entry in section.Items)
+            foreach (var section in sections)
             {
-                string resolvedPath = SidebarService.ResolvePath(entry.Path);
-                string displayName  = entry.Name;
+                var target = section.Title.Equals("Network", StringComparison.OrdinalIgnoreCase)
+                    ? _networkItems
+                    : _myComputerItems;
 
-                if (entry.Name.Equals("Home", StringComparison.OrdinalIgnoreCase) &&
-                    resolvedPath.Equals(userProfilePath, StringComparison.OrdinalIgnoreCase))
-                    displayName = Environment.UserName;
-
-                target.Add(new SidebarItem.Item
+                foreach (var entry in section.Entries)
                 {
-                    Name     = displayName,
-                    IconPath = SidebarIconMapper.GetIconPath(entry.IconPath),
-                    Path     = resolvedPath,
-                });
+                    string resolvedPath = entry.Path;
+                    string displayName  = entry.Name;
+
+                    // "Home" entry shows the user's name when it points to the user profile directory
+                    if (entry.Icon.Equals("Home", StringComparison.OrdinalIgnoreCase) &&
+                        resolvedPath.Equals(_userProfilePath, StringComparison.OrdinalIgnoreCase))
+                        displayName = Environment.UserName;
+
+                    target.Add(new SidebarItem.Item
+                    {
+                        Name     = displayName,
+                        IconPath = SidebarIconMapper.GetIconPath(entry.Icon),
+                        Path     = resolvedPath,
+                    });
+                }
             }
         }
 
+        // Bookmarks still come from the config file
         foreach (var bm in config.Bookmarks)
         {
             _bookmarkItems.Add(new SidebarItem.Item
@@ -163,7 +191,12 @@ public partial class MainWindow : Window
 
         _interaction.ContextMenuRequested = (screenPos, selectedPaths) =>
         {
-            ShellContextMenuService.Show(this, screenPos, selectedPaths);
+            // Find the module that handles the first selected path and show its context menu.
+            if (selectedPaths.Count > 0)
+            {
+                var handlerModule = App.Modules.FindByPath(selectedPaths[0]);
+                handlerModule?.ContextMenuProvider?.Show(this, screenPos, selectedPaths);
+            }
         };
 
         _interaction.ErrorDisplayRequested = message =>

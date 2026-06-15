@@ -56,7 +56,7 @@ public static class NativeIconHelper
     // NOT readonly — passed as 'ref' to SHCreateItemFromParsingName, which requires a writable reference
     private static Guid IID_IShellItemImageFactory = new("BCC18B79-BA16-442F-80C4-8A59C30C463B");
 
-    // ── Win32 — SHGetFileInfo (fallback 32�-32 icon) ──────────────────────────
+    // ── Win32 — SHGetFileInfo (fallback 32×32 icon) ──────────────────────────
 
     [DllImport("shell32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes,
@@ -81,7 +81,7 @@ public static class NativeIconHelper
     // ── Public API (no caching — fresh shell call every time) ────────────────
 
     /// <summary>
-    /// Fast synchronous 32�-32 icon for a file via SHGetFileInfo.
+    /// Fast synchronous 32×32 icon for a file via SHGetFileInfo.
     /// Every call fetches from the shell — no cache.
     /// </summary>
     public static BitmapSource? GetIconForFile(string filePath)
@@ -99,12 +99,13 @@ public static class NativeIconHelper
     /// Falls back to hi-res shell icon. Every call fetches from the shell — no cache.
     /// Concurrency is capped to 4 simultaneous shell calls.
     /// </summary>
-    public static async Task<BitmapSource?> GetThumbnailAsync(string filePath, int requestedSize)
+    public static async Task<BitmapSource?> GetThumbnailAsync(string filePath, int requestedSize, CancellationToken cancellationToken = default)
     {
-        await ThumbnailGate.WaitAsync().ConfigureAwait(false);
+        await ThumbnailGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await Task.Run(() => FetchThumbnailOrHiResIcon(filePath, requestedSize)).ConfigureAwait(false);
+            cancellationToken.ThrowIfCancellationRequested();
+            return await Task.Run(() => FetchThumbnailOrHiResIcon(filePath, requestedSize), cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -121,19 +122,26 @@ public static class NativeIconHelper
             SHCreateItemFromParsingName(path, IntPtr.Zero, ref IID_IShellItemImageFactory, out var obj);
             if (obj is IShellItemImageFactory factory)
             {
-                int hr = factory.GetImage(new SIZE { cx = size, cy = size },
-                    SIIGBF.BiggerSizeOk | SIIGBF.IconOnly, out var hBitmap);
-
-                if (hr == 0 && hBitmap != IntPtr.Zero)
+                try
                 {
-                    var bs = HBitmapToBitmapSource(hBitmap);
-                    if (bs != null) return bs;
+                    int hr = factory.GetImage(new SIZE { cx = size, cy = size },
+                        SIIGBF.BiggerSizeOk | SIIGBF.IconOnly, out var hBitmap);
+
+                    if (hr == 0 && hBitmap != IntPtr.Zero)
+                    {
+                        var bs = HBitmapToBitmapSource(hBitmap);
+                        if (bs != null) return bs;
+                    }
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(factory);
                 }
             }
         }
         catch { }
 
-        // Fallback — 32�-32 from SHGetFileInfo
+        // Fallback — 32×32 from SHGetFileInfo
         return FetchIconViaShgfi(path, FILE_ATTRIBUTE_DIR, useAttribs: false);
     }
 
@@ -144,13 +152,20 @@ public static class NativeIconHelper
             SHCreateItemFromParsingName(filePath, IntPtr.Zero, ref IID_IShellItemImageFactory, out var obj);
             if (obj is IShellItemImageFactory factory)
             {
-                int hr = factory.GetImage(new SIZE { cx = requestedSize, cy = requestedSize },
-                    SIIGBF.BiggerSizeOk | SIIGBF.ResizeToFit, out var hBitmap);
-
-                if (hr == 0 && hBitmap != IntPtr.Zero)
+                try
                 {
-                    var bs = HBitmapToBitmapSource(hBitmap);
-                    if (bs != null) return bs;
+                    int hr = factory.GetImage(new SIZE { cx = requestedSize, cy = requestedSize },
+                        SIIGBF.BiggerSizeOk | SIIGBF.ResizeToFit, out var hBitmap);
+
+                    if (hr == 0 && hBitmap != IntPtr.Zero)
+                    {
+                        var bs = HBitmapToBitmapSource(hBitmap);
+                        if (bs != null) return bs;
+                    }
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(factory);
                 }
             }
         }

@@ -11,6 +11,9 @@ namespace dot_net_fm;
 public sealed class TabManager
 {
     private readonly string _userProfilePath;
+    private readonly IModule? _module;
+    private readonly IFileProvider _fileProvider;
+    private readonly IIconProvider? _iconProvider;
     private readonly List<TabStore> _stores = new();
 
     /// <summary>All open tabs in display order (for tab strip binding).</summary>
@@ -28,9 +31,12 @@ public sealed class TabManager
     /// <summary>Fired when the last tab is closed.</summary>
     public event Action? AllTabsClosed;
 
-    public TabManager(string userProfilePath)
+    public TabManager(string userProfilePath, IModule? module)
     {
         _userProfilePath = userProfilePath;
+        _module = module;
+        _fileProvider = module?.FileProvider ?? new DummyFileProvider();
+        _iconProvider = module?.IconProvider;
         Tabs = new ReadOnlyCollection<TabStore>(_stores);
     }
 
@@ -42,7 +48,8 @@ public sealed class TabManager
     /// </summary>
     public TabStore AddTab(string? initialPath = null)
     {
-        var store = new TabStore(_userProfilePath);
+        var watcher = _module?.CreateDirectoryWatcher() ?? new DummyDirectoryWatcher();
+        var store = new TabStore(_userProfilePath, _fileProvider, _iconProvider, watcher);
         _stores.Add(store);
         SetActiveTab(store);
 
@@ -155,4 +162,29 @@ public sealed class TabManager
             if (_stores[i].State.TabId == tabId) return i;
         return -1;
     }
+}
+
+/// <summary>
+/// No-op fallback implementations used when no module is loaded.
+/// Prevents null-reference issues while maintaining the interface contract.
+/// </summary>
+file sealed class DummyFileProvider : IFileProvider
+{
+    public Task<FileResult> GetItemsAsync(string path, int offset, int count, CancellationToken cancellationToken = default)
+        => Task.FromResult(new FileResult { Items = [], TotalCount = 0, Offset = 0 });
+    public string GetDisplayTitle(string path) => path;
+    public string GetDisplayPath(string path) => path;
+    public string? GetParentPath(string path) => null;
+    public bool IsVirtualRoot(string path) => true;
+    public string? GetFreeSpaceInfo(string path) => null;
+}
+
+#pragma warning disable CS0067 // DummyDirectoryWatcher.DirectoryChanged is never used — no-op fallback
+file sealed class DummyDirectoryWatcher : IDirectoryWatcher
+{
+    public event Action? DirectoryChanged;
+#pragma warning restore CS0067
+    public void Watch(string path) { }
+    public void Stop() { }
+    public void Dispose() { }
 }

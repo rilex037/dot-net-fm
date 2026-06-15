@@ -120,16 +120,6 @@ Define sections, items, icons, and bookmarks. Paths support environment variable
 - **Icon Rendering:** [SharpVectors](https://github.com/ElinamLLC/SharpVectors) for SVG support
 - **Native Interop:** Win32 API via P/Invoke for shell menus, icons, and monitor info
 
-## Roadmap
-
-- [ ] Path bar breadcrumb click-to-navigate
-- [ ] File search / filter
-- [ ] Split view (dual pane)
-- [ ] File previews panel
-- [ ] Keyboard shortcut customization
-- [ ] Linux file manager–style app grid launcher
-- [ ] Localization support
-
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
