@@ -20,9 +20,6 @@ public static class TabReducer
             ActivePath  = a.Path,
             Title       = DeriveTitle(a.Path),
             LoadStatus  = TabLoadStatus.Loading,
-            DisplayPath = a.Path == NavigationService.MyComputerPath
-                ? "My Computer"
-                : a.Path
         },
 
         TabAction.GoBack or TabAction.GoForward or TabAction.GoUp => state with
@@ -38,9 +35,6 @@ public static class TabReducer
             Title       = DeriveTitle(a.Path),
             LoadStatus  = TabLoadStatus.Idle,
             ItemCount   = a.Items.Count,
-            DisplayPath = a.Path == NavigationService.MyComputerPath
-                ? "My Computer"
-                : a.Path
         },
 
         // ── Refresh ───────────────────────────────────────────────
@@ -88,8 +82,6 @@ public static class TabReducer
 
     private static string DeriveTitle(string path)
     {
-        if (path == NavigationService.MyComputerPath) return "My Computer";
-
         string name = Path.GetFileName(path);
         return string.IsNullOrEmpty(name) ? path : name;
     }

@@ -18,6 +18,7 @@ public sealed class TabStore : IDisposable
 {
     private TabStateRecord _state;
     private readonly NavigationService _navigation;
+    private readonly IFileProvider _fileProvider;
     private readonly IDirectoryWatcher _directoryWatcher;
     private readonly ObservableCollection<FolderItem> _folders;
     private CancellationTokenSource? _navCts;
@@ -40,6 +41,7 @@ public sealed class TabStore : IDisposable
 
     public TabStore(string userProfilePath, IFileProvider fileProvider, IIconProvider? iconProvider, IDirectoryWatcher directoryWatcher)
     {
+        _fileProvider = fileProvider;
         _navigation = new NavigationService(userProfilePath, fileProvider, iconProvider);
         _directoryWatcher = directoryWatcher;
         _folders = new ObservableCollection<FolderItem>();
@@ -151,7 +153,7 @@ public sealed class TabStore : IDisposable
         _state = TabReducer.Reduce(_state, a);
 
         _directoryWatcher.Stop();
-        if (a.Path != NavigationService.MyComputerPath)
+        if (!_fileProvider.IsVirtualRoot(a.Path))
             _directoryWatcher.Watch(a.Path);
 
         StateChanged?.Invoke(_state);

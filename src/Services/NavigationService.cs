@@ -13,8 +13,6 @@ namespace dot_net_fm;
 /// </summary>
 public class NavigationService
 {
-    public const string MyComputerPath = "::mycomputer";
-
     private readonly string _userProfilePath;
     private readonly IFileProvider _fileProvider;
     private readonly IIconProvider? _iconProvider;
@@ -43,8 +41,8 @@ public class NavigationService
     {
         if (string.IsNullOrEmpty(targetPath)) return;
 
-        bool isSpecialPath = targetPath == MyComputerPath;
-        if (!isSpecialPath && !Directory.Exists(targetPath)) return;
+        bool isVirtualRoot = _fileProvider.IsVirtualRoot(targetPath);
+        if (!isVirtualRoot && !Directory.Exists(targetPath)) return;
 
         if (pushToHistory && !string.IsNullOrEmpty(_currentPath))
         {

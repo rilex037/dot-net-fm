@@ -96,13 +96,12 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Disabled">
-                    <StackPanel x:Name="TabStripPanel" Orientation="Horizontal"
-                                VerticalAlignment="Center" Margin="6,0,0,0"/>
-                </ScrollViewer>
+         
+                <StackPanel x:Name="TabStripPanel" Orientation="Horizontal"
+                    VerticalAlignment="Center" Margin="{StaticResource SpacingTabStripMargin}"/>
+             
                 <!-- Add Tab Button -->
-                <Button Grid.Column="1" x:Name="AddTabButton" Width="24" Height="22"
+                <Button Grid.Column="1" x:Name="AddTabButton" Width="24" Height="24"
                         Margin="0,0,8,0" Click="AddTabButton_Click"
                         Background="Transparent" BorderThickness="0" Focusable="False"
                         ToolTip="New Tab (Ctrl+T)">

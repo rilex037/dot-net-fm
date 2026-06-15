@@ -8,35 +8,26 @@ using System.Windows.Input;
 namespace dot_net_fm;
 
 /// <summary>
-/// Sidebar panel layout with My Computer, Network, and Bookmarks sections.
+/// Sidebar panel that dynamically renders sections contributed by the active module.
 /// </summary>
 public partial class SidebarPanel : UserControl
 {
-    public static readonly DependencyProperty MyComputerItemsProperty =
-        DependencyProperty.Register(nameof(MyComputerItems), typeof(ObservableCollection<SidebarItem.Item>), typeof(SidebarPanel));
+    public static readonly DependencyProperty SectionsProperty =
+        DependencyProperty.Register(nameof(Sections), typeof(ObservableCollection<SidebarSectionView>), typeof(SidebarPanel));
 
-    public static readonly DependencyProperty NetworkItemsProperty =
-        DependencyProperty.Register(nameof(NetworkItems), typeof(ObservableCollection<SidebarItem.Item>), typeof(SidebarPanel));
+    public static readonly DependencyProperty FileProviderProperty =
+        DependencyProperty.Register(nameof(FileProvider), typeof(IFileProvider), typeof(SidebarPanel));
 
-    public static readonly DependencyProperty BookmarkItemsProperty =
-        DependencyProperty.Register(nameof(BookmarkItems), typeof(ObservableCollection<SidebarItem.Item>), typeof(SidebarPanel));
-
-    public ObservableCollection<SidebarItem.Item>? MyComputerItems
+    public ObservableCollection<SidebarSectionView>? Sections
     {
-        get => (ObservableCollection<SidebarItem.Item>?)GetValue(MyComputerItemsProperty);
-        set => SetValue(MyComputerItemsProperty, value);
+        get => (ObservableCollection<SidebarSectionView>?)GetValue(SectionsProperty);
+        set => SetValue(SectionsProperty, value);
     }
 
-    public ObservableCollection<SidebarItem.Item>? NetworkItems
+    public IFileProvider? FileProvider
     {
-        get => (ObservableCollection<SidebarItem.Item>?)GetValue(NetworkItemsProperty);
-        set => SetValue(NetworkItemsProperty, value);
-    }
-
-    public ObservableCollection<SidebarItem.Item>? BookmarkItems
-    {
-        get => (ObservableCollection<SidebarItem.Item>?)GetValue(BookmarkItemsProperty);
-        set => SetValue(BookmarkItemsProperty, value);
+        get => (IFileProvider?)GetValue(FileProviderProperty);
+        set => SetValue(FileProviderProperty, value);
     }
 
     /// <summary>
@@ -55,7 +46,7 @@ public partial class SidebarPanel : UserControl
         {
             string targetPath = sidebarItem.Path;
             if (!string.IsNullOrEmpty(targetPath) &&
-                (targetPath == NavigationService.MyComputerPath || Directory.Exists(targetPath)))
+                (FileProvider?.IsVirtualRoot(targetPath) == true || Directory.Exists(targetPath)))
             {
                 NavigateRequested?.Invoke(targetPath);
             }

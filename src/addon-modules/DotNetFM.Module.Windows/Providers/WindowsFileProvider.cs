@@ -107,8 +107,7 @@ public sealed class WindowsFileProvider : IFileProvider
 
     public string GetDisplayTitle(string path)
     {
-        if (path == MyComputerPath) return "My Computer";
-
+        if (WindowsModule.KnownClsids.TryGetValue(path, out var displayName)) return displayName;
         return string.IsNullOrEmpty(path)
             ? path
             : Path.GetFileName(path);
@@ -116,7 +115,7 @@ public sealed class WindowsFileProvider : IFileProvider
 
     public string GetDisplayPath(string path)
     {
-        if (path == MyComputerPath) return "My Computer";
+        if (WindowsModule.KnownClsids.TryGetValue(path, out var displayName)) return displayName;
         return path;
     }
 

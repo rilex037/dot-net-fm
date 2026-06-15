@@ -14,14 +14,11 @@ public interface IModule
     /// <summary>Display name shown in the UI (e.g., "Local Files", "FTP Server").</summary>
     string DisplayName { get; }
 
-    /// <summary>URI scheme prefix (e.g., "windows", "ftp"). Used for bookmark routing.</summary>
-    string UriPrefix { get; }
+    /// <summary>URI scheme prefixes (e.g., ["windows", "shell"], ["ftp"]). Used for routing and bookmark lookup.</summary>
+    IReadOnlyList<string> UriPrefixes { get; }
 
     /// <summary>Priority order for sidebar sections (lower = higher priority).</summary>
     int Order { get; }
-
-    /// <summary>Whether this module can handle the given URI path.</summary>
-    bool CanHandle(string path);
 
     /// <summary>The file provider for browsing files.</summary>
     IFileProvider FileProvider { get; }
@@ -40,4 +37,10 @@ public interface IModule
 
     /// <summary>Sidebar sections contributed by this module.</summary>
     IReadOnlyList<SidebarSection> GetSidebarSections();
+
+    /// <summary>
+    /// Resolves a user-typed display name back to the internal path.
+    /// Returns null if the name doesn't match any known location.
+    /// </summary>
+    string? ResolveDisplayName(string name);
 }

@@ -1,4 +1,5 @@
 using System.IO;
+using System.Linq;
 
 namespace dot_net_fm;
 
@@ -16,13 +17,47 @@ public sealed class WindowsModule : IModule
 
     public string ModuleId => "windows";
     public string DisplayName => "Local Files";
-    public string UriPrefix => "windows";
     public int Order => 0;
+
+    public IReadOnlyList<string> UriPrefixes => _prefixes.Value;
 
     public IFileProvider FileProvider => _fileProvider;
     public IFileOperations FileOperations => _fileOperations;
     public IIconProvider IconProvider => _iconProvider;
     public IContextMenuProvider? ContextMenuProvider => _contextMenuProvider;
+
+    // ── Known CLSIDs for shell namespace virtual folders ──────────
+    public static readonly Dictionary<string, string> KnownClsids = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["::mycomputer"] = "My Computer",
+        ["::{20D04FE0-3AEA-1069-A2D8-08002B30309D}"] = "This PC",
+        ["::{645FF040-5081-101B-9F08-00AA002F954E}"] = "Recycle Bin",
+        ["::{F02C1A0D-BE21-4350-88B0-7367FC96EF3C}"] = "Network",
+        ["::{D20EA4E1-3957-11D2-848B-00C04FD43608}"] = "Control Panel",
+    };
+
+    // ── Static prefixes + dynamic drive letter prefixes ───────────
+    private static readonly string[] _staticPrefixes = ["windows", "shell", "::{"];
+
+    private static string[] CollectAllPrefixes()
+    {
+        string[] drives;
+        try
+        {
+            drives = DriveInfo.GetDrives()
+                .Where(d => d.IsReady)
+                .Select(d => d.Name.TrimEnd('\\'))  // "C:\", "D:\" → "C:", "D:"
+                .ToArray();
+        }
+        catch
+        {
+            drives = [];
+        }
+
+        return [.._staticPrefixes, ..drives];
+    }
+
+    private readonly Lazy<string[]> _prefixes = new(CollectAllPrefixes);
 
     public WindowsModule()
     {
@@ -34,15 +69,22 @@ public sealed class WindowsModule : IModule
 
     public IDirectoryWatcher CreateDirectoryWatcher() => new WindowsDirectoryWatcher();
 
-    public bool CanHandle(string path)
+    /// <summary>
+    /// Resolves a user-typed display name back to the internal path.
+    /// Used when navigating via the address bar with human-readable names.
+    /// </summary>
+    public string? ResolveDisplayName(string name)
     {
-        if (string.IsNullOrEmpty(path)) return false;
+        if (string.IsNullOrWhiteSpace(name)) return null;
 
-        // Can handle: local paths (C:\, D:\, etc.) and "My Computer"
-        if (path == WindowsFileProvider.MyComputerPath) return true;
-        if (path.Length >= 2 && char.IsLetter(path[0]) && path[1] == ':') return true;
+        // Reverse lookup: "Recycle Bin" → "::{645FF040-...}", "My Computer" → "::mycomputer"
+        foreach (var (path, displayName) in KnownClsids)
+        {
+            if (displayName.Equals(name, StringComparison.OrdinalIgnoreCase))
+                return path;
+        }
 
-        return false;
+        return null;
     }
 
     public IReadOnlyList<SidebarSection> GetSidebarSections()

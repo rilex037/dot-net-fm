@@ -13,97 +13,41 @@
                 </Trigger>
             </Style.Triggers>
         </Style>
+        <DataTemplate x:Key="SidebarItemTemplate" DataType="local:SidebarItem+Item">
+            <Border Height="{StaticResource SizeSidebarItemHeight}" Padding="{StaticResource SpacingSidebarItemPadding}" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
+                    Style="{StaticResource SidebarItemStyle}">
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="16"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="{StaticResource FontSidebarItemSize}" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
+                </Grid>
+            </Border>
+        </DataTemplate>
     </UserControl.Resources>
 
     <ScrollViewer Background="{StaticResource SidebarBrush}" VerticalScrollBarVisibility="Hidden"
                   BorderThickness="0,0,1,0" BorderBrush="{StaticResource SeparatorBrush}">
         <StackPanel Margin="{StaticResource SpacingOuterMargin}">
-            <!-- My Computer section -->
-            <StackPanel Margin="{StaticResource SpacingChildSectionMargin}">
-                <Grid Height="{StaticResource SizeSectionHeaderHeight}" Margin="{StaticResource SpacingHeaderMargin}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="&#x25BE;" FontSize="{StaticResource FontSectionHeaderSize}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <TextBlock Grid.Column="1" Text="MY COMPUTER" FontSize="{StaticResource FontSectionHeaderSize}" FontWeight="{StaticResource FontSectionHeaderWeight}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center"/>
-                </Grid>
-                <ItemsControl ItemsSource="{Binding MyComputerItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="local:SidebarItem+Item">
-                            <Border Height="{StaticResource SizeSidebarItemHeight}" Padding="{StaticResource SpacingSidebarItemPadding}" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
-                                    Style="{StaticResource SidebarItemStyle}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="16"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="{StaticResource FontSidebarItemSize}" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-
-            <!-- Network section -->
-            <StackPanel Margin="{StaticResource SpacingSectionMargin}">
-                <Grid Height="{StaticResource SizeSectionHeaderHeight}" Margin="{StaticResource SpacingHeaderMargin}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="&#x25BE;" FontSize="{StaticResource FontSectionHeaderSize}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <TextBlock Grid.Column="1" Text="NETWORK" FontSize="{StaticResource FontSectionHeaderSize}" FontWeight="{StaticResource FontSectionHeaderWeight}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center"/>
-                </Grid>
-                <ItemsControl ItemsSource="{Binding NetworkItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="local:SidebarItem+Item">
-                            <Border Height="{StaticResource SizeSidebarItemHeight}" Padding="{StaticResource SpacingSidebarItemPadding}" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
-                                    Style="{StaticResource SidebarItemStyle}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="16"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="{StaticResource FontSidebarItemSize}" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
-
-            <!-- Bookmarks section -->
-            <StackPanel Margin="{StaticResource SpacingSectionMargin}">
-                <Grid Height="{StaticResource SizeSectionHeaderHeight}" Margin="{StaticResource SpacingHeaderMargin}">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="Auto"/>
-                        <ColumnDefinition Width="*"/>
-                    </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="&#x25BE;" FontSize="{StaticResource FontSectionHeaderSize}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <TextBlock Grid.Column="1" Text="BOOKMARKS" FontSize="{StaticResource FontSectionHeaderSize}" FontWeight="{StaticResource FontSectionHeaderWeight}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center"/>
-                </Grid>
-                <ItemsControl ItemsSource="{Binding BookmarkItems, RelativeSource={RelativeSource AncestorType=UserControl}}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate DataType="local:SidebarItem+Item">
-                            <Border Height="{StaticResource SizeSidebarItemHeight}" Padding="{StaticResource SpacingSidebarItemPadding}" Cursor="Hand" MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
-                                    Style="{StaticResource SidebarItemStyle}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="16"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <svg:SvgViewbox UriSource="{Binding IconPath, Converter={StaticResource StringToUriConverter}}" Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="{StaticResource FontSidebarItemSize}" Foreground="{StaticResource TextPrimaryBrush}" VerticalAlignment="Center" Margin="{StaticResource SpacingItemTextMargin}"/>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+            <ItemsControl ItemsSource="{Binding Sections, RelativeSource={RelativeSource AncestorType=UserControl}}">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="local:SidebarSectionView">
+                        <StackPanel Margin="{StaticResource SpacingChildSectionMargin}">
+                            <Grid Height="{StaticResource SizeSectionHeaderHeight}" Margin="{StaticResource SpacingHeaderMargin}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0" Text="&#x25BE;" FontSize="{StaticResource FontSectionHeaderSize}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                <TextBlock Grid.Column="1" Text="{Binding Title}" FontSize="{StaticResource FontSectionHeaderSize}" FontWeight="{StaticResource FontSectionHeaderWeight}" Foreground="{StaticResource SectionHeaderBrush}" VerticalAlignment="Center"/>
+                            </Grid>
+                            <ItemsControl ItemsSource="{Binding Items}" ItemTemplate="{StaticResource SidebarItemTemplate}"/>
+                        </StackPanel>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
         </StackPanel>
     </ScrollViewer>
 </UserControl>

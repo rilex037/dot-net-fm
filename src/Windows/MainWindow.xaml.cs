@@ -21,13 +21,12 @@ public partial class MainWindow : Window
     private const int  WM_GETMINMAXINFO        = 0x0024;
     private const uint MONITOR_DEFAULTTONEAREST = 2u;
 
-    private readonly TabManager             _tabs;
+    private readonly IModule                 _module;
+    private readonly TabManager              _tabs;
     private readonly FileInteractionService _interaction;
     private readonly DragDropService        _dragDrop = new();
 
-    private readonly ObservableCollection<SidebarItem.Item> _myComputerItems = new();
-    private readonly ObservableCollection<SidebarItem.Item> _networkItems    = new();
-    private readonly ObservableCollection<SidebarItem.Item> _bookmarkItems   = new();
+    private ObservableCollection<SidebarSectionView> _sidebarSections = new();
 
     private readonly string _userProfilePath;
     private TabStore? _subscribedTab;
@@ -43,30 +42,30 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        // Resolve initial path: extract raw path from module URI (e.g. "windows://C:\Users" → "C:\Users")
-        var moduleUri = ModuleUri.Parse(initialPath);
-        string rawPath = moduleUri.Path;
+        // Resolve module and path from the raw argument.
+        IModule module;
+        string rawPath;
 
-        // If no path provided or path doesn't exist, fall back to a sensible default
-        if (string.IsNullOrWhiteSpace(rawPath) || !System.IO.Directory.Exists(rawPath))
+        if (string.IsNullOrEmpty(initialPath))
         {
-            string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (!string.IsNullOrWhiteSpace(userProfilePath) && System.IO.Directory.Exists(userProfilePath))
-                rawPath = userProfilePath;
-            else
-                rawPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            // No CLI arg — use default module (Windows) with user profile as starting path
+            module = App.Modules.DefaultModule;
+            rawPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
-
-        // Find the module that handles this path
-        var module = App.Modules.FindByPath(rawPath);
+        else
+        {
+            // Try URI prefix lookup first, match against registered prefixes
+            module = App.Modules.FindByPath(initialPath) ?? App.Modules.DefaultModule;
+            rawPath = ModuleUri.Parse(initialPath).Path;
+        }
+        _module      = module;
         _userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         _interaction = new FileInteractionService();
         _tabs        = new TabManager(rawPath, module);
 
-        SidebarPanel.MyComputerItems = _myComputerItems;
-        SidebarPanel.NetworkItems    = _networkItems;
-        SidebarPanel.BookmarkItems   = _bookmarkItems;
+        SidebarPanel.Sections    = _sidebarSections;
+        SidebarPanel.FileProvider = _module.FileProvider;
 
         InitializeSidebar(rawPath);
         WireUpSidebarAndNavEvents();
@@ -83,10 +82,9 @@ public partial class MainWindow : Window
 
     private void InitializeSidebar(string initialPath)
     {
-        SidebarItem config = SidebarService.Load();
-        SidebarIconMapper.Initialize(config.SidebarIcons);
+        SidebarIconMapper.Initialize(SidebarService.Load().SidebarIcons);
 
-        // Use module-contributed sidebar sections instead of static config sections
+        // Use module-contributed sidebar sections — no hardcoded section names
         var module = App.Modules.FindByPath(initialPath);
         var sections = module?.GetSidebarSections()
             .OrderBy(s => s.Order)
@@ -96,9 +94,7 @@ public partial class MainWindow : Window
         {
             foreach (var section in sections)
             {
-                var target = section.Title.Equals("Network", StringComparison.OrdinalIgnoreCase)
-                    ? _networkItems
-                    : _myComputerItems;
+                var view = new SidebarSectionView { Title = section.Title };
 
                 foreach (var entry in section.Entries)
                 {
@@ -110,25 +106,16 @@ public partial class MainWindow : Window
                         resolvedPath.Equals(_userProfilePath, StringComparison.OrdinalIgnoreCase))
                         displayName = Environment.UserName;
 
-                    target.Add(new SidebarItem.Item
+                    view.Items.Add(new SidebarItem.Item
                     {
                         Name     = displayName,
                         IconPath = SidebarIconMapper.GetIconPath(entry.Icon),
                         Path     = resolvedPath,
                     });
                 }
-            }
-        }
 
-        // Bookmarks still come from the config file
-        foreach (var bm in config.Bookmarks)
-        {
-            _bookmarkItems.Add(new SidebarItem.Item
-            {
-                Name     = bm.Name,
-                IconPath = SidebarIconMapper.GetIconPath(bm.IconPath),
-                Path     = SidebarService.ResolvePath(bm.Path),
-            });
+                _sidebarSections.Add(view);
+            }
         }
     }
 
@@ -170,9 +157,10 @@ public partial class MainWindow : Window
 
     private void ApplyStateToUI(TabStateRecord state)
     {
-        Title = state.Title;
-        TitleBar.SetTitle(state.Title);
-        NavToolbar.SetPath(state.DisplayPath);
+        string displayTitle = _module.FileProvider.GetDisplayTitle(state.ActivePath);
+        Title = displayTitle;
+        TitleBar.SetTitle(displayTitle);
+        NavToolbar.SetPath(_module.FileProvider.GetDisplayPath(state.ActivePath));
         NavToolbar.UpdateNavStates(state.CanGoBack, state.CanGoForward, state.CanGoUp);
         StatusBar.SetStatus(state.StatusText);
         FileGrid.IconSize    = state.IconSize;
@@ -250,8 +238,8 @@ public partial class MainWindow : Window
             string target = path.Trim();
             if (string.IsNullOrEmpty(target)) return;
 
-            if (target.Equals("my computer", StringComparison.OrdinalIgnoreCase))
-                target = NavigationService.MyComputerPath;
+            // Let the module resolve display names to internal paths
+            target = _module.ResolveDisplayName(target) ?? target;
 
             _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.NavigateTo(target));
@@ -385,14 +373,13 @@ public partial class MainWindow : Window
 
             var titleBlock = new TextBlock
             {
-                Text              = store.State.Title,
+                Text              = _module.FileProvider.GetDisplayTitle(store.State.ActivePath),
                 VerticalAlignment = VerticalAlignment.Center,
                 FontSize          = (double)FindResource("FontTabTitleSize"),
                 Foreground        = (Brush)FindResource("TextPrimaryBrush"),
                 MinWidth          = 40,
                 MaxWidth          = 150,
                 TextTrimming      = TextTrimming.CharacterEllipsis,
-                Margin            = new Thickness(0, 0, 4, 0),
             };
 
             var closeButton = new Button
@@ -436,7 +423,7 @@ public partial class MainWindow : Window
 
             void TitleHandler(TabStateRecord s)
             {
-                if (s.TabId == tabId) titleBlock.Text = s.Title;
+                if (s.TabId == tabId) titleBlock.Text = _module.FileProvider.GetDisplayTitle(s.ActivePath);
             }
             _tabTitleHandlers[tabId] = TitleHandler;
             store.StateChanged += TitleHandler;
