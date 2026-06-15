@@ -29,15 +29,27 @@ jobs:
           echo "EOF" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
 
       - name: Restore dependencies
-        run: dotnet restore dot-net-fm.csproj
+        run: |
+          dotnet restore src/Core/DotNetFM.Core.csproj
+          dotnet restore src/addon-modules/DotNetFM.Module.Windows/DotNetFM.Module.Windows.csproj
+          dotnet restore dot-net-fm.csproj
 
-      - name: Build & publish
+      - name: Build module
+        run: dotnet build src/addon-modules/DotNetFM.Module.Windows/DotNetFM.Module.Windows.csproj -c Release
+
+      - name: Build & publish app
         run: |
           dotnet publish dot-net-fm.csproj `
             -c Release `
             -r win-x64 `
             --self-contained false `
             -o publish/DotNetFM
+
+      - name: Copy module DLLs to publish output
+        shell: pwsh
+        run: |
+          $moduleBin = "src/addon-modules/DotNetFM.Module.Windows/bin/Release/net8.0-windows"
+          Copy-Item "$moduleBin/DotNetFM.Module.Windows.dll" -Destination "publish/DotNetFM/"
 
       - name: Zip published output
         shell: pwsh

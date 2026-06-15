@@ -8,7 +8,7 @@ namespace dot_net_fm;
 
 /// <summary>
 /// Handles all navigation state and logic: NavigateTo, LoadDirectory, back/forward/up stacks.
-/// No UI dependencies — only data and state.
+/// Delegates file listing to <see cref="IFileProvider"/> — no direct filesystem calls.
 /// Icon loading is orchestrated per-item by FolderItem.LoadIconAsync(), not by this service.
 /// </summary>
 public class NavigationService
@@ -16,6 +16,8 @@ public class NavigationService
     public const string MyComputerPath = "::mycomputer";
 
     private readonly string _userProfilePath;
+    private readonly IFileProvider _fileProvider;
+    private readonly IIconProvider? _iconProvider;
     private string _currentPath = "";
     private readonly Stack<string> _backStack = new();
     private readonly Stack<string> _forwardStack = new();
@@ -27,9 +29,11 @@ public class NavigationService
     public event Action<string>? StatusChanged;
     public event Action? NavStateChanged;
 
-    public NavigationService(string userProfilePath)
+    public NavigationService(string userProfilePath, IFileProvider fileProvider, IIconProvider? iconProvider = null)
     {
         _userProfilePath = userProfilePath;
+        _fileProvider = fileProvider;
+        _iconProvider = iconProvider;
     }
 
     /// <summary>
@@ -54,119 +58,41 @@ public class NavigationService
     }
 
     /// <summary>
-    /// Loads directory contents. Items are returned without icons.
-    /// The caller (MainWindow) populates the UI and triggers per-item icon loads.
+    /// Loads directory contents via <see cref="IFileProvider"/>. Items are returned with
+    /// the icon provider set. The caller populates the UI and triggers per-item icon loads.
     /// </summary>
     public async Task<List<FolderItem>> LoadDirectoryItemsAsync(string targetPath)
     {
-        if (targetPath == MyComputerPath)
-        {
-            TitleChanged?.Invoke("My Computer");
-            var drives = DriveInfoService.GetDriveItems();
-            StatusChanged?.Invoke($"{drives.Count} drive{(drives.Count == 1 ? "" : "s")}");
-            return drives;
-        }
-
-        string displayName = targetPath.Equals(_userProfilePath, StringComparison.OrdinalIgnoreCase)
-            ? Environment.UserName
-            : Path.GetFileName(targetPath);
-
-        if (string.IsNullOrEmpty(displayName)) displayName = targetPath;
-
-        TitleChanged?.Invoke(displayName);
+        TitleChanged?.Invoke(_fileProvider.GetDisplayTitle(targetPath));
 
         var items = new List<FolderItem>();
         try
         {
-            var entries = await Task.Run(() => ReadDirectoryEntries(targetPath));
-            items.AddRange(entries);
+            var result = await _fileProvider.GetItemsAsync(targetPath, 0, int.MaxValue);
 
-            int count = items.Count;
-            string freeSpaceStr = "";
-            string? driveName = Path.GetPathRoot(targetPath);
-            if (!string.IsNullOrEmpty(driveName))
+            foreach (var item in result.Items)
             {
-                try
-                {
-                    var drive = new DriveInfo(driveName);
-                    double gb = drive.AvailableFreeSpace / (1024.0 * 1024.0 * 1024.0);
-                    freeSpaceStr = $", Free space: {gb:F1} GB";
-                }
-                catch { }
+                item.IconProvider = _iconProvider;
+
+                // Sync icon for immediate display (drives, folders)
+                if (_iconProvider != null && item.NativeIcon == null)
+                    item.NativeIcon = _iconProvider.GetIconForFile(item.FullPath);
+
+                items.Add(item);
             }
 
-            StatusChanged?.Invoke($"{count} item{(count == 1 ? "" : "s")}{freeSpaceStr}");
+            string? freeSpaceStr = _fileProvider.GetFreeSpaceInfo(targetPath);
+            string status = $"{items.Count} item{(items.Count == 1 ? "" : "s")}";
+            if (!string.IsNullOrEmpty(freeSpaceStr))
+                status += $", {freeSpaceStr}";
+
+            StatusChanged?.Invoke(status);
         }
         catch (Exception ex)
         {
             MessageBox.Show($"Could not access folder: {ex.Message}", "Access Denied",
                 MessageBoxButton.OK, MessageBoxImage.Error);
         }
-
-        return items;
-    }
-
-    private static List<FolderItem> ReadDirectoryEntries(string targetPath)
-    {
-        var items = new List<FolderItem>();
-
-        foreach (var dir in Directory.GetDirectories(targetPath))
-        {
-            try
-            {
-                var di = new DirectoryInfo(dir);
-                if ((di.Attributes & FileAttributes.Hidden) != 0 ||
-                    (di.Attributes & FileAttributes.System) != 0) continue;
-
-                string itemCount;
-                try
-                {
-                    int n = Directory.GetFileSystemEntries(dir).Length;
-                    itemCount = $"{n} item{(n == 1 ? "" : "s")}";
-                }
-                catch { itemCount = "Folder"; }
-
-                items.Add(new FolderItem { Name = di.Name, ItemCount = itemCount, FullPath = dir, IsFolder = true });
-            }
-            catch { }
-        }
-
-        foreach (var file in Directory.GetFiles(targetPath))
-        {
-            try
-            {
-                var fi = new FileInfo(file);
-                if ((fi.Attributes & FileAttributes.Hidden) != 0 ||
-                    (fi.Attributes & FileAttributes.System) != 0) continue;
-
-                items.Add(new FolderItem
-                {
-                    Name = fi.Name,
-                    ItemCount = $"{fi.Length / 1024} KB",
-                    FullPath = file,
-                    IsFolder = false
-                });
-            }
-            catch { }
-        }
-
-        // Default sort: folders first, then by extension (files only), then by name (case-insensitive).
-        items.Sort((a, b) =>
-        {
-            int folderCmp = -a.IsFolder.CompareTo(b.IsFolder); // true (folder) before false (file)
-            if (folderCmp != 0) return folderCmp;
-
-            // Extension sorting only applies to files; folder names can contain dots
-            if (!a.IsFolder)
-            {
-                string extA = Path.GetExtension(a.Name);
-                string extB = Path.GetExtension(b.Name);
-                int extCmp = string.Compare(extA, extB, StringComparison.OrdinalIgnoreCase);
-                if (extCmp != 0) return extCmp;
-            }
-
-            return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
-        });
 
         return items;
     }
@@ -193,16 +119,16 @@ public class NavigationService
 
     public bool GoUp()
     {
-        var parent = Directory.GetParent(_currentPath);
+        var parent = _fileProvider.GetParentPath(_currentPath);
         if (parent == null) return false;
-        NavigateTo(parent.FullName);
+        NavigateTo(parent);
         NavStateChanged?.Invoke();
         return true;
     }
 
     public bool CanGoBack    => _backStack.Count > 0;
     public bool CanGoForward => _forwardStack.Count > 0;
-    public bool CanGoUp      => Directory.GetParent(_currentPath) != null;
+    public bool CanGoUp      => !_fileProvider.IsVirtualRoot(_currentPath) && _fileProvider.GetParentPath(_currentPath) != null;
 
     public void RefreshNavState() => NavStateChanged?.Invoke();
 }

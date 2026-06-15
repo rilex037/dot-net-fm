@@ -18,9 +18,10 @@ public sealed class TabStore : IDisposable
 {
     private TabStateRecord _state;
     private readonly NavigationService _navigation;
-    private readonly DirectoryWatcherService _directoryWatcher;
+    private readonly IDirectoryWatcher _directoryWatcher;
     private readonly ObservableCollection<FolderItem> _folders;
     private CancellationTokenSource? _navCts;
+    private readonly Action _directoryChangedHandler;
 
     private const int BatchSize = 20;
 
@@ -37,10 +38,10 @@ public sealed class TabStore : IDisposable
 
     // ── Construction ───────────────────────────────────────────────
 
-    public TabStore(string userProfilePath)
+    public TabStore(string userProfilePath, IFileProvider fileProvider, IIconProvider? iconProvider, IDirectoryWatcher directoryWatcher)
     {
-        _navigation = new NavigationService(userProfilePath);
-        _directoryWatcher = new DirectoryWatcherService();
+        _navigation = new NavigationService(userProfilePath, fileProvider, iconProvider);
+        _directoryWatcher = directoryWatcher;
         _folders = new ObservableCollection<FolderItem>();
         Folders = new ReadOnlyObservableCollection<FolderItem>(_folders);
         _state = new TabStateRecord();
@@ -51,7 +52,8 @@ public sealed class TabStore : IDisposable
         _navigation.NavStateChanged += ()    => Dispatch(new TabAction.NavStateUpdated(
             _navigation.CanGoBack, _navigation.CanGoForward, _navigation.CanGoUp));
 
-        _directoryWatcher.DirectoryChanged += () => Dispatch(new TabAction.DirectoryFileChangeDetected());
+        _directoryChangedHandler = () => Dispatch(new TabAction.DirectoryFileChangeDetected());
+        _directoryWatcher.DirectoryChanged += _directoryChangedHandler;
     }
 
     // ── Dispatch — single entry point for all mutations ────────────
@@ -162,41 +164,65 @@ public sealed class TabStore : IDisposable
     private async System.Threading.Tasks.Task LoadIconsBatchedAsync(IReadOnlyList<FolderItem> items)
     {
         _navCts = new CancellationTokenSource();
-        var token = _navCts.Token;
+        var cts = _navCts;
+        var token = cts.Token;
         var iconSize = _state.IconSize;
 
-        await Application.Current.Dispatcher.InvokeAsync(
-            () => { }, DispatcherPriority.Background);
-
-        for (int off = 0; off < items.Count; off += BatchSize)
+        try
         {
-            if (token.IsCancellationRequested) break;
+            await Application.Current.Dispatcher.InvokeAsync(
+                () => { }, DispatcherPriority.Background);
 
-            int end = Math.Min(off + BatchSize, items.Count);
-            for (int i = off; i < end; i++)
-                items[i].LoadIconAsync(token, iconSize);
+            for (int off = 0; off < items.Count; off += BatchSize)
+            {
+                if (token.IsCancellationRequested) break;
 
-            await Dispatcher.Yield(DispatcherPriority.Background);
+                int end = Math.Min(off + BatchSize, items.Count);
+                for (int i = off; i < end; i++)
+                    items[i].LoadIconAsync(token, iconSize);
+
+                await Dispatcher.Yield(DispatcherPriority.Background);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_navCts, cts))
+            {
+                cts.Dispose();
+                _navCts = null;
+            }
         }
     }
 
     private async System.Threading.Tasks.Task ReloadIconsAsync(int iconSize)
     {
         _navCts = new CancellationTokenSource();
-        var token = _navCts.Token;
+        var cts = _navCts;
+        var token = cts.Token;
 
-        await Application.Current.Dispatcher.InvokeAsync(
-            () => { }, DispatcherPriority.Background);
-
-        for (int off = 0; off < _folders.Count; off += BatchSize)
+        try
         {
-            if (token.IsCancellationRequested) break;
+            await Application.Current.Dispatcher.InvokeAsync(
+                () => { }, DispatcherPriority.Background);
 
-            int end = Math.Min(off + BatchSize, _folders.Count);
-            for (int i = off; i < end; i++)
-                _folders[i].LoadIconAsync(token, iconSize);
+            for (int off = 0; off < _folders.Count; off += BatchSize)
+            {
+                if (token.IsCancellationRequested) break;
 
-            await Dispatcher.Yield(DispatcherPriority.Background);
+                int end = Math.Min(off + BatchSize, _folders.Count);
+                for (int i = off; i < end; i++)
+                    _folders[i].LoadIconAsync(token, iconSize);
+
+                await Dispatcher.Yield(DispatcherPriority.Background);
+            }
+        }
+        finally
+        {
+            if (ReferenceEquals(_navCts, cts))
+            {
+                cts.Dispose();
+                _navCts = null;
+            }
         }
     }
 
@@ -213,7 +239,7 @@ public sealed class TabStore : IDisposable
         _navCts?.Dispose();
         _navCts = null;
 
-        _directoryWatcher.DirectoryChanged -= () => Dispatch(new TabAction.DirectoryFileChangeDetected());
+        _directoryWatcher.DirectoryChanged -= _directoryChangedHandler;
         _directoryWatcher.Dispose();
 
         foreach (var item in _folders)

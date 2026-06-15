@@ -248,9 +248,9 @@ public static class ShellContextMenuService
 
         try
         {
-            // Get PIDL for the parent directory
+            // Parse the parent directory to get its PIDL
             hr = SHParseDisplayName(parentDir, IntPtr.Zero, out IntPtr parentPidl, 0, out _);
-            if (hr != 0) return;
+            if (hr != 0 || parentPidl == IntPtr.Zero) return;
 
             try
             {
@@ -259,21 +259,10 @@ public static class ShellContextMenuService
                 desktopFolder.BindToObject(parentPidl, IntPtr.Zero, ref iidShellFolder, out IntPtr parentFolderPtr);
                 if (parentFolderPtr == IntPtr.Zero) return;
 
-                IShellFolder parentFolder;
-
+                var parentFolder = (IShellFolder)Marshal.GetObjectForIUnknown(parentFolderPtr);
                 try
                 {
-                    parentFolder = (IShellFolder)Marshal.GetObjectForIUnknown(parentFolderPtr);
-                }
-                catch
-                {
-                    Marshal.Release(parentFolderPtr);
-                    return;
-                }
-
-                try
-                {
-                    // Get relative PIDLs for each selected item
+                    // Get PIDLs for all selected items (relative to parent folder)
                     var itemPidls = new IntPtr[selectedPaths.Count];
                     int validCount = 0;
 

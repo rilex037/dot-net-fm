@@ -1,25 +1,22 @@
-using System;
 using System.IO;
-using System.Windows;
 using System.Windows.Threading;
 
 namespace dot_net_fm;
 
 /// <summary>
-/// Watches a directory for file system changes (create, delete, rename).
-/// Fires <see cref="DirectoryChanged"/> debounced at 300ms to batch bulk operations.
-/// Start watching with <see cref="Watch"/>, stop with <see cref="Stop"/>.
+/// Windows-specific IDirectoryWatcher implementation using FileSystemWatcher.
+/// Watches a directory for file system changes with debounced notifications.
 /// </summary>
-public sealed class DirectoryWatcherService : IDisposable
+public sealed class WindowsDirectoryWatcher : IDirectoryWatcher
 {
     private FileSystemWatcher? _watcher;
     private readonly DispatcherTimer _debounceTimer;
-    private bool _disposed;
+    private volatile bool _disposed;
 
     /// <summary>Fired on file system changes in the watched directory (debounced).</summary>
     public event Action? DirectoryChanged;
 
-    public DirectoryWatcherService()
+    public WindowsDirectoryWatcher()
     {
         _debounceTimer = new DispatcherTimer
         {
@@ -33,16 +30,20 @@ public sealed class DirectoryWatcherService : IDisposable
     {
         Stop();
 
-        _watcher = new FileSystemWatcher(path)
+        try
         {
-            IncludeSubdirectories = false,
-            EnableRaisingEvents = true,
-            NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName
-        };
+            _watcher = new FileSystemWatcher(path)
+            {
+                IncludeSubdirectories = false,
+                EnableRaisingEvents = true,
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName
+            };
 
-        _watcher.Created += OnChanged;
-        _watcher.Deleted += OnChanged;
-        _watcher.Renamed += OnRenamed;
+            _watcher.Created += OnChanged;
+            _watcher.Deleted += OnChanged;
+            _watcher.Renamed += OnRenamed;
+        }
+        catch { }
     }
 
     /// <summary>Stops watching and cancels pending debounce.</summary>
@@ -50,7 +51,6 @@ public sealed class DirectoryWatcherService : IDisposable
     {
         _watcher?.Dispose();
         _watcher = null;
-
         _debounceTimer.Stop();
     }
 
@@ -82,6 +82,7 @@ public sealed class DirectoryWatcherService : IDisposable
     {
         if (_disposed) return;
         _disposed = true;
+        _debounceTimer.Tick -= OnDebounceTick;
         Stop();
     }
 }
