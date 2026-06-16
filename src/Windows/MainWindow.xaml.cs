@@ -217,7 +217,13 @@ public partial class MainWindow : Window
     private void OnActiveTabStateChanged(TabStateRecord state)
     {
         if (_tabs.ActiveTab?.State.TabId != state.TabId) return;
+
+        var store = _tabs.ActiveTab;
+        store.SaveScrollOffset(_activeView.CurrentPath, _activeView.VerticalOffset);
+
+        double savedOffset = store.GetScrollOffset(state.ActivePath);
         ApplyStateToUI(state);
+        _activeView.ResetScroll(savedOffset);
     }
 
     private void ApplyStateToUI(TabStateRecord state)

@@ -410,6 +410,13 @@ public partial class FileViewContainer : UserControl, IFileView
             _preRubberBandSnapshot = null;
     }
 
+    public void ResetScroll(double offset = 0)
+    {
+        ActiveScrollViewer?.ScrollToVerticalOffset(offset);
+    }
+
+    public double VerticalOffset => ActiveScrollViewer?.VerticalOffset ?? 0;
+
     public void ClearAllSelections()
     {
         if (Folders is IEnumerable<FolderItem> folders)

@@ -18,6 +18,8 @@ public interface IFileView
 
     void CommitAnyRename();
     void FocusRenameTextBox(FolderItem item);
+    void ResetScroll(double offset = 0);
+    double VerticalOffset { get; }
 
     event Action<MouseWheelEventArgs>? MouseWheelPreview;
 

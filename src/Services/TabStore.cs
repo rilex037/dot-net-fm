@@ -23,6 +23,7 @@ public sealed class TabStore : IDisposable
     private readonly ObservableCollection<FolderItem> _folders;
     private CancellationTokenSource? _navCts;
     private readonly Action _directoryChangedHandler;
+    private readonly Dictionary<string, double> _scrollOffsets = new();
 
     private const int BatchSize = 20;
 
@@ -235,6 +236,16 @@ public sealed class TabStore : IDisposable
     }
 
     // ── Disposal ──────────────────────────────────────────────────
+
+    public void SaveScrollOffset(string path, double offset)
+    {
+        _scrollOffsets[path] = offset;
+    }
+
+    public double GetScrollOffset(string path)
+    {
+        return _scrollOffsets.TryGetValue(path, out var offset) ? offset : 0;
+    }
 
     public void StopWatching()
     {
