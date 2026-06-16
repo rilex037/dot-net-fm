@@ -17,8 +17,4 @@ public static class CommandIds
     public static readonly RoutedUICommand Refresh    = new("Refresh",    "Refresh",    typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.F5) });
     public static readonly RoutedUICommand ZoomIn     = new("ZoomIn",     "ZoomIn",     typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.OemPlus, ModifierKeys.Control) });
     public static readonly RoutedUICommand ZoomOut    = new("ZoomOut",    "ZoomOut",    typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.OemMinus, ModifierKeys.Control) });
-    public static readonly RoutedUICommand NewTab     = new("NewTab",     "NewTab",     typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.T, ModifierKeys.Control) });
-    public static readonly RoutedUICommand CloseTab   = new("CloseTab",   "CloseTab",   typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.W, ModifierKeys.Control) });
-    public static readonly RoutedUICommand NextTab    = new("NextTab",    "NextTab",    typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.Tab, ModifierKeys.Control) });
-    public static readonly RoutedUICommand PrevTab    = new("PrevTab",    "PrevTab",    typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.Tab, ModifierKeys.Control | ModifierKeys.Shift) });
 }

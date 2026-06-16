@@ -65,7 +65,13 @@ public sealed class TabStore : IDisposable
         switch (action)
         {
             case TabAction.NavigateTo a:
-                _navigation.NavigateTo(a.Path, a.PushToHistory);
+                if (!_navigation.NavigateTo(a.Path, a.PushToHistory))
+                {
+                    // Path invalid — update status only, don't change state
+                    _state = TabReducer.Reduce(_state, new TabAction.StatusTextUpdated("Path not found"));
+                    StateChanged?.Invoke(_state);
+                    return;
+                }
                 break;
 
             case TabAction.GoBack:

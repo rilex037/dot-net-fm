@@ -21,7 +21,6 @@
             <Border Height="{StaticResource SizeSidebarItemHeight}"
                     Padding="{StaticResource SpacingSidebarItemPadding}"
                     Cursor="Hand"
-                    MouseLeftButtonDown="SidebarItem_MouseLeftButtonDown"
                     Style="{StaticResource SidebarItemStyle}">
                 <Grid>
                     <Grid.ColumnDefinitions>

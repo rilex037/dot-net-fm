@@ -35,17 +35,33 @@ public static class RubberBandHelper
     /// Updates the IsSelected flag on items that intersect with the selection rectangle.
     /// The <paramref name="getItemBounds"/> callback should return the item's bounding rect
     /// relative to the same coordinate space as <paramref name="selectionRect"/>.
+    /// When <paramref name="additiveSnapshot"/> is provided (Ctrl+drag), items that were
+    /// selected before the rubber band started keep their selection even outside the band.
     /// </summary>
     public static void ApplySelection(
         IEnumerable<FolderItem> items,
         Rect selectionRect,
-        Func<FolderItem, Rect?> getItemBounds)
+        Func<FolderItem, Rect?> getItemBounds,
+        HashSet<FolderItem>? additiveSnapshot = null)
     {
         foreach (var item in items)
         {
             var itemRect = getItemBounds(item);
-            if (itemRect.HasValue)
-                item.IsSelected = selectionRect.IntersectsWith(itemRect.Value);
+            bool intersects = itemRect.HasValue && selectionRect.IntersectsWith(itemRect.Value);
+
+            if (additiveSnapshot != null)
+            {
+                // Additive: intersecting items get selected,
+                // pre-existing selections outside the band are preserved.
+                if (intersects)
+                    item.IsSelected = true;
+                else if (!additiveSnapshot.Contains(item))
+                    item.IsSelected = false;
+            }
+            else
+            {
+                item.IsSelected = intersects;
+            }
         }
     }
 }

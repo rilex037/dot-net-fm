@@ -1,14 +1,12 @@
-using System;
 using System.Collections.ObjectModel;
-using System.IO;
 using System.Windows;
 using System.Windows.Controls;
-using System.Windows.Input;
 
 namespace DotNetFM;
 
 /// <summary>
 /// Sidebar panel that dynamically renders sections contributed by the active module.
+/// Delegates all item interaction to <see cref="SidebarEventHandler"/>.
 /// </summary>
 public partial class SidebarPanel : UserControl
 {
@@ -30,26 +28,28 @@ public partial class SidebarPanel : UserControl
         set => SetValue(FileProviderProperty, value);
     }
 
-    /// <summary>
-    /// Raised when the user clicks a sidebar item and requests navigation to its path.
-    /// </summary>
+    private SidebarEventHandler? _handler;
+
+    /// <summary>Raised when the user clicks a sidebar item to navigate in the current tab.</summary>
     public event Action<string>? NavigateRequested;
+
+    /// <summary>Raised when the user middle-clicks a sidebar item to open it in a new tab.</summary>
+    public event Action<string>? OpenInNewTabRequested;
 
     public SidebarPanel()
     {
         InitializeComponent();
+        Loaded += OnLoaded;
     }
 
-    private void SidebarItem_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+    private void OnLoaded(object sender, RoutedEventArgs e)
     {
-        if (sender is FrameworkElement element && element.DataContext is SidebarItem.Item sidebarItem)
-        {
-            string targetPath = sidebarItem.Path;
-            if (!string.IsNullOrEmpty(targetPath) &&
-                (FileProvider?.IsVirtualRoot(targetPath) == true || Directory.Exists(targetPath)))
-            {
-                NavigateRequested?.Invoke(targetPath);
-            }
-        }
+        // Find the root ItemsControl via visual tree — no x:Name dependency.
+        var itemsControl = VisualTreeUtility.FindDescendant<ItemsControl>(this);
+        if (itemsControl == null) return;
+
+        _handler = new SidebarEventHandler(itemsControl, FileProvider);
+        _handler.NavigateRequested += path => NavigateRequested?.Invoke(path);
+        _handler.OpenInNewTabRequested += path => OpenInNewTabRequested?.Invoke(path);
     }
 }
