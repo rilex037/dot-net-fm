@@ -5,6 +5,8 @@
              Focusable="True">
 
     <UserControl.Resources>
+        <Thickness x:Key="ItemMargin">4</Thickness>
+
         <Style x:Key="ScrollThumbs" TargetType="Thumb">
             <Setter Property="Template">
                 <Setter.Value>
@@ -83,7 +85,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="local:FolderItem">
                         <Border x:Name="ItemBorder" Cursor="Hand"
-                                Margin="{Binding ItemMargin, RelativeSource={RelativeSource AncestorType=local:FileGridView}}" CornerRadius="{StaticResource CornerRadiusLarge}"
+                                Margin="{DynamicResource  ItemMargin}" CornerRadius="{StaticResource CornerRadiusLarge}"
                                 MouseLeftButtonDown="ItemBorder_MouseLeftButtonDown">
                             <Border.Style>
                                 <Style TargetType="Border">

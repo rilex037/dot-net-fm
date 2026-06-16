@@ -31,21 +31,11 @@ public partial class FileGridView : UserControl
         DependencyProperty.Register(nameof(IconSize), typeof(int), typeof(FileGridView),
             new PropertyMetadata(64, OnIconSizeChanged));
 
-    public static readonly DependencyProperty ItemMarginProperty =
-        DependencyProperty.Register(nameof(ItemMargin), typeof(Thickness), typeof(FileGridView),
-            new PropertyMetadata(new Thickness(4)));
-
-    public Thickness ItemMargin
-    {
-        get => (Thickness)GetValue(ItemMarginProperty);
-        set => SetValue(ItemMarginProperty, value);
-    }
-
     private static void OnIconSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var grid = (FileGridView)d;
-        int m = (int)e.NewValue >= 128 ? 8 : 4;
-        grid.ItemMargin = new Thickness(m);
+        int m = (int)e.NewValue >= 128 ? 12 : 4;
+        grid.Resources["ItemMargin"] = new Thickness(m);
     }
 
     public IEnumerable? Folders
@@ -182,8 +172,7 @@ public partial class FileGridView : UserControl
     {
         if (InteractionService == null) return;
 
-        var typedFolders = Folders as IEnumerable<FolderItem>;
-        if (typedFolders != null)
+        if (Folders is IEnumerable<FolderItem> typedFolders)
             DragDropService?.UpdateDrag(this, typedFolders);
 
         if (Mouse.Captured != SelectionCanvas) return;
@@ -208,12 +197,12 @@ public partial class FileGridView : UserControl
         SelectionBorder.Width = rect.Width;
         SelectionBorder.Height = rect.Height;
 
-        if (typedFolders != null)
+        if (Folders is IEnumerable<FolderItem> selectableFolders)
         {
-            RubberBandHelper.ApplySelection(typedFolders, rect, item =>
+            RubberBandHelper.ApplySelection(selectableFolders, rect, item =>
             {
-                var container = FolderItemsControl.ItemContainerGenerator.ContainerFromItem(item) as ContentPresenter;
-                if (container == null) return null;
+                if (FolderItemsControl.ItemContainerGenerator.ContainerFromItem(item) is not ContentPresenter container)
+                    return null;
                 var topLeft = container.TranslatePoint(new Point(0, 0), SelectionCanvas);
                 return new Rect(topLeft, new Size(container.ActualWidth, container.ActualHeight));
             });
@@ -236,9 +225,8 @@ public partial class FileGridView : UserControl
         if (InteractionService == null) return;
 
         var hitItem = VisualTreeUtility.GetFolderItemAtPoint(FolderItemsControl, e.GetPosition(FolderItemsControl));
-        var typedFolders = Folders as IEnumerable<FolderItem>;
 
-        if (hitItem != null && typedFolders != null)
+        if (hitItem != null && Folders is IEnumerable<FolderItem> typedFolders)
         {
             if (!hitItem.IsSelected)
             {
@@ -274,8 +262,9 @@ public partial class FileGridView : UserControl
             clearAllSelections: folders => ClearAllSelections(),
             onCommitted: item =>
             {
-                var container = FolderItemsControl.ItemContainerGenerator.ContainerFromItem(item) as ContentPresenter;
-                var textBox = container != null ? VisualTreeUtility.FindDescendant<TextBox>(container) : null;
+                if (FolderItemsControl.ItemContainerGenerator.ContainerFromItem(item) is not ContentPresenter container)
+                    return;
+                var textBox = VisualTreeUtility.FindDescendant<TextBox>(container);
                 if (textBox != null)
                     InteractionService?.FinalizeRename(item, textBox.Text);
             });
@@ -289,8 +278,9 @@ public partial class FileGridView : UserControl
     {
         Application.Current.Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
         {
-            var container = FolderItemsControl.ItemContainerGenerator.ContainerFromItem(item) as ContentPresenter;
-            var textBox = container != null ? VisualTreeUtility.FindDescendant<TextBox>(container) : null;
+            if (FolderItemsControl.ItemContainerGenerator.ContainerFromItem(item) is not ContentPresenter container)
+                return;
+            var textBox = VisualTreeUtility.FindDescendant<TextBox>(container);
             if (textBox != null)
             {
                 textBox.Focus();
