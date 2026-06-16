@@ -1,0 +1,28 @@
+<UserControl x:Class="DotNetFM.FileViewContainer"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:DotNetFM"
+             Focusable="True">
+
+    <Grid Background="{StaticResource BackgroundBrush}" ClipToBounds="True"
+          PreviewMouseLeftButtonDown="FileView_PreviewMouseLeftButtonDown"
+          PreviewMouseMove="FileView_PreviewMouseMove"
+          PreviewMouseLeftButtonUp="FileView_PreviewMouseLeftButtonUp"
+          PreviewMouseRightButtonUp="FileView_PreviewMouseRightButtonUp"
+          AllowDrop="True"
+          DragOver="FileView_DragOver"
+          Drop="FileView_Drop">
+
+        <!-- Active child view (grid, list, etc.) is placed here -->
+        <ContentControl x:Name="ContentHost"/>
+
+        <!-- Rubber band selection overlay (on top of content) -->
+        <Canvas x:Name="SelectionCanvas" IsHitTestVisible="False">
+            <Border x:Name="SelectionBorder"
+                    Background="{StaticResource SelectionBackground}"
+                    BorderBrush="{StaticResource SelectionBorder}"
+                    BorderThickness="1"
+                    Visibility="Collapsed"/>
+        </Canvas>
+    </Grid>
+</UserControl>

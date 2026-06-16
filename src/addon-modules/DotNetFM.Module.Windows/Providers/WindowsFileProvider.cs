@@ -16,7 +16,7 @@ internal static class ShellPathHelper
     public const string MyComputerPath = "::mycomputer";
 
     /// <summary>
-    /// Maps known CLSIDs to their parent.  Currently everything goes to
+    /// Maps known CLSIDs to their parent. Currently everything goes to
     /// MyComputer (Recycle Bin, This PC, Network, Control Panel).
     /// </summary>
     public static string? GetShellParent(string path)
@@ -58,48 +58,54 @@ public sealed class WindowsFileProvider : IFileProvider
 
             try
             {
-                // Read directories — streaming, no upfront array allocation
-                foreach (var dir in Directory.EnumerateDirectories(path))
+                // Resolve junctions/symlinks so enumeration hits the real target,
+                // while the caller keeps the original path for display.
+                var dirInfo = new DirectoryInfo(ResolveDirectoryTarget(new DirectoryInfo(path)));
+
+                // Single pass over the directory contents (files and folders together)
+                foreach (var fsi in dirInfo.EnumerateFileSystemInfos())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
+                    
                     try
                     {
-                        var di = new DirectoryInfo(dir);
-                        if ((di.Attributes & FileAttributes.Hidden) != 0 ||
-                            (di.Attributes & FileAttributes.System) != 0) continue;
-
-                        string itemCount;
-                        try
+                        if (fsi is DirectoryInfo di)
                         {
-                            int n = Directory.EnumerateFileSystemEntries(dir).Count();
-                            itemCount = $"{n} item{(n == 1 ? "" : "s")}";
+                            string targetPath = ResolveDirectoryTarget(di);
+
+                            string itemCount;
+                            try
+                            {
+                                int n = Directory.EnumerateFileSystemEntries(targetPath).Count();
+                                itemCount = n == 0
+                                    ? "Empty Folder"
+                                    : $"{n} item{(n == 1 ? "" : "s")}";
+                            }
+                            catch 
+                            { 
+                                itemCount = "???"; 
+                            }
+
+                            items.Add(new FolderItem 
+                            { 
+                                Name = di.Name, 
+                                ItemCount = itemCount, 
+                                FullPath = di.FullName, 
+                                IsFolder = true 
+                            });
                         }
-                        catch { itemCount = "Folder"; }
-
-                        items.Add(new FolderItem { Name = di.Name, ItemCount = itemCount, FullPath = dir, IsFolder = true });
-                    }
-                    catch { }
-                }
-
-                // Read files — streaming, no upfront array allocation
-                foreach (var file in Directory.EnumerateFiles(path))
-                {
-                    cancellationToken.ThrowIfCancellationRequested();
-                    try
-                    {
-                        var fi = new FileInfo(file);
-                        if ((fi.Attributes & FileAttributes.Hidden) != 0 ||
-                            (fi.Attributes & FileAttributes.System) != 0) continue;
-
-                        items.Add(new FolderItem
+                        else if (fsi is FileInfo fi)
                         {
-                            Name = fi.Name,
-                            ItemCount = fi.Length < 1024
-                                ? $"{fi.Length} B"
-                                : $"{fi.Length / 1024} KB",
-                            FullPath = file,
-                            IsFolder = false
-                        });
+                            items.Add(new FolderItem
+                            {
+                                Name = fi.Name,
+                                ItemCount = fi.Length < 1024 
+                                    ? $"{fi.Length} B" 
+                                    : $"{fi.Length / 1024} KB",
+                                FullPath = fi.FullName,
+                                IsFolder = false
+                            });
+                        }
                     }
                     catch { }
                 }
@@ -136,9 +142,9 @@ public sealed class WindowsFileProvider : IFileProvider
     public string GetDisplayTitle(string path)
     {
         if (WindowsModule.KnownClsids.TryGetValue(path, out var displayName)) return displayName;
-        return string.IsNullOrEmpty(path)
-            ? path
-            : Path.GetFileName(path);
+        if (string.IsNullOrEmpty(path)) return path;
+        string name = Path.GetFileName(path);
+        return string.IsNullOrEmpty(name) ? path : name;
     }
 
     public string GetDisplayPath(string path)
@@ -169,6 +175,26 @@ public sealed class WindowsFileProvider : IFileProvider
             return $"Free space: {freeGB:F1} GB";
         }
         catch { return null; }
+    }
+
+    /// <summary>
+    /// If <paramref name="di"/> is a junction or symlink, returns the resolved
+    /// target path. Otherwise returns <see cref="DirectoryInfo.FullName"/> unchanged.
+    /// </summary>
+    private static string ResolveDirectoryTarget(DirectoryInfo di)
+    {
+        if (!di.Attributes.HasFlag(FileAttributes.ReparsePoint))
+            return di.FullName;
+
+        string? target = di.LinkTarget;
+        if (string.IsNullOrEmpty(target))
+            return di.FullName;
+
+        // NTFS junctions store the target as \??\C:\path — strip the prefix.
+        if (target.StartsWith(@"\\?\"))
+            target = target[4..];
+
+        return target;
     }
 
     private static List<FolderItem> GetDriveItems()

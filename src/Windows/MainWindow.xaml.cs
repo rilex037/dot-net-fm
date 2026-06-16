@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
@@ -25,12 +26,14 @@ public partial class MainWindow : Window
     private readonly TabManager _tabs;
     private readonly FileInteractionService _interaction;
     private readonly DragDropService _dragDrop = new();
+    private readonly FileGridView _fileGrid = new();
 
     private ObservableCollection<SidebarSectionView> _sidebarSections = new();
 
     private readonly string _userProfilePath;
     private TabStore? _subscribedTab;
-    private readonly Dictionary<Guid, Action<TabStateRecord>> _tabTitleHandlers = new();
+    private readonly TabStripBuilder _tabStrip;
+    private readonly IFileView _activeView;
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -41,6 +44,15 @@ public partial class MainWindow : Window
     public MainWindow(string initialPath = "")
     {
         InitializeComponent();
+
+        _activeView = FileContainer;
+        FileContainer.SetActiveContent(_fileGrid);
+
+        // Restore window geometry from store.
+        Left   = double.Parse(AppStore.Read("window.left"));
+        Top    = double.Parse(AppStore.Read("window.top"));
+        Width  = double.Parse(AppStore.Read("window.width"));
+        Height = double.Parse(AppStore.Read("window.height"));
 
         // Resolve module and path from the raw argument.
         IModule module;
@@ -57,12 +69,18 @@ public partial class MainWindow : Window
             // Try URI prefix lookup first, match against registered prefixes
             module = App.Modules.FindByPath(initialPath) ?? App.Modules.DefaultModule;
             rawPath = ModuleUri.Parse(initialPath).Path;
+
+            // Validate shell-provided path — fall back to user profile if it doesn't exist
+            bool pathExists = module.FileProvider.IsVirtualRoot(rawPath) || Directory.Exists(rawPath);
+            if (!pathExists)
+                rawPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
         _module = module;
         _userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         _interaction = new FileInteractionService();
         _tabs = new TabManager(rawPath, module);
+        _tabStrip = new TabStripBuilder(module, _tabs);
 
         SidebarPanel.Sections = _sidebarSections;
         SidebarPanel.FileProvider = _module.FileProvider;
@@ -73,9 +91,56 @@ public partial class MainWindow : Window
         WireUpTabManagerEvents();
         WireUpInteractionEvents();
 
-        StatusBar.ZoomSlider.Value = 1;
+        // Restore previously open tabs, or create a default one.
+        var savedPaths = TabPersistenceService.LoadTabPaths();
+        if (savedPaths.Count > 0)
+        {
+            foreach (var path in savedPaths)
+                _tabs.AddTab(path);
 
-        _tabs.AddTab();
+            int activeIdx = TabPersistenceService.LoadActiveTabIndex();
+            if (activeIdx >= 0 && activeIdx < _tabs.Tabs.Count)
+                _tabs.SetActiveTab(activeIdx);
+        }
+        else
+        {
+            _tabs.AddTab();
+        }
+
+        // If launched from the shell with a path, activate it if already open, otherwise open new.
+        if (!string.IsNullOrEmpty(initialPath))
+        {
+            bool found = false;
+            foreach (var store in _tabs.Tabs)
+            {
+                if (string.Equals(store.State.ActivePath, rawPath, StringComparison.OrdinalIgnoreCase))
+                {
+                    _tabs.SetActiveTab(store.State.TabId);
+                    found = true;
+                    break;
+                }
+            }
+
+            if (!found)
+                _tabs.AddTab(rawPath);
+        }
+    }
+
+    // ── Persist state on close ─────────────────────────────────────
+
+    protected override void OnClosing(System.ComponentModel.CancelEventArgs e)
+    {
+        base.OnClosing(e);
+
+        AppStore.Write("window.left",   Left.ToString());
+        AppStore.Write("window.top",    Top.ToString());
+        AppStore.Write("window.width",  Width.ToString());
+        AppStore.Write("window.height", Height.ToString());
+
+        if (_tabs.ActiveTab != null)
+            AppStore.Write("tab.iconsize", _tabs.ActiveTab.State.IconSize.ToString());
+
+        TabPersistenceService.SaveTabs(_tabs.Tabs, _tabs.ActiveTab);
     }
 
     // ── Sidebar initialization ─────────────────────────────────────
@@ -125,7 +190,7 @@ public partial class MainWindow : Window
     {
         _tabs.ActiveTabChanged += OnActiveTabChanged;
         _tabs.AllTabsClosed += () => _tabs.AddTab();
-        _tabs.TabClosed += _ => RefreshTabStrip();
+        _tabs.TabClosed += _ => _tabStrip.Rebuild(TabStripPanel);
     }
 
     private void OnActiveTabChanged(TabStore? newTab)
@@ -138,21 +203,27 @@ public partial class MainWindow : Window
         _subscribedTab = newTab;
         newTab.StateChanged += OnActiveTabStateChanged;
 
-        FileGrid.Folders = newTab.Folders;
-        FileGrid.InteractionService = _interaction;
-        FileGrid.DragDropService = _dragDrop;
-        FileGrid.CurrentPath = newTab.State.ActivePath;
-        FileGrid.IconSize = newTab.State.IconSize;
+        _activeView.Folders = newTab.Folders;
+        _activeView.InteractionService = _interaction;
+        _activeView.DragDropService = _dragDrop;
+        _activeView.CurrentPath = newTab.State.ActivePath;
+        _activeView.IconSize = newTab.State.IconSize;
 
         StatusBar.SetZoomForIconSize(newTab.State.IconSize);
         ApplyStateToUI(newTab.State);
-        RefreshTabStrip();
+        _tabStrip.Rebuild(TabStripPanel);
     }
 
     private void OnActiveTabStateChanged(TabStateRecord state)
     {
         if (_tabs.ActiveTab?.State.TabId != state.TabId) return;
+
+        var store = _tabs.ActiveTab;
+        store.SaveScrollOffset(_activeView.CurrentPath, _activeView.VerticalOffset);
+
+        double savedOffset = store.GetScrollOffset(state.ActivePath);
         ApplyStateToUI(state);
+        _activeView.ResetScroll(savedOffset);
     }
 
     private void ApplyStateToUI(TabStateRecord state)
@@ -163,8 +234,8 @@ public partial class MainWindow : Window
         NavToolbar.SetPath(_module.FileProvider.GetDisplayPath(state.ActivePath));
         NavToolbar.UpdateNavStates(state.CanGoBack, state.CanGoForward, state.CanGoUp);
         StatusBar.SetStatus(state.StatusText);
-        FileGrid.IconSize = state.IconSize;
-        FileGrid.CurrentPath = state.ActivePath;
+        _activeView.IconSize = state.IconSize;
+        _activeView.CurrentPath = state.ActivePath;
     }
 
     // ── Interaction event wiring ───────────────────────────────────
@@ -173,7 +244,7 @@ public partial class MainWindow : Window
     {
         _interaction.NavigateRequested = path =>
         {
-            _tabs.CommitActiveRename(FileGrid);
+            _tabs.CommitActiveRename(_activeView);
             _tabs.DispatchActive(new TabAction.NavigateTo(path));
         };
 
@@ -196,13 +267,15 @@ public partial class MainWindow : Window
         _interaction.RenameManager.RenameReady += item =>
         {
             _interaction.RenameManager.BeginRename(item);
-            FileGrid.FocusRenameTextBox(item);
+            _activeView.FocusRenameTextBox(item);
         };
 
         _dragDrop.TransferRequested = (paths, targetDir, forceCopy) =>
         {
             _interaction.FileOperations.TransferFiles(paths, targetDir, forceCopy);
         };
+
+        _activeView.OpenInNewTabRequested += path => _tabs.AddTab(path);
     }
 
     // ── Sidebar and Navigation toolbar ─────────────────────────────
@@ -211,25 +284,27 @@ public partial class MainWindow : Window
     {
         SidebarPanel.NavigateRequested += path =>
         {
-            _tabs.CommitActiveRename(FileGrid);
+            _tabs.CommitActiveRename(_activeView);
             _tabs.DispatchActive(new TabAction.NavigateTo(path));
         };
 
+        SidebarPanel.OpenInNewTabRequested += path => _tabs.AddTab(path);
+
         NavToolbar.BackRequested += () =>
         {
-            _tabs.CommitActiveRename(FileGrid);
+            _tabs.CommitActiveRename(_activeView);
             _tabs.DispatchActive(new TabAction.GoBack());
         };
 
         NavToolbar.ForwardRequested += () =>
         {
-            _tabs.CommitActiveRename(FileGrid);
+            _tabs.CommitActiveRename(_activeView);
             _tabs.DispatchActive(new TabAction.GoForward());
         };
 
         NavToolbar.UpRequested += () =>
         {
-            _tabs.CommitActiveRename(FileGrid);
+            _tabs.CommitActiveRename(_activeView);
             _tabs.DispatchActive(new TabAction.GoUp());
         };
 
@@ -241,8 +316,19 @@ public partial class MainWindow : Window
             // Let the module resolve display names to internal paths
             target = _module.ResolveDisplayName(target) ?? target;
 
-            _tabs.CommitActiveRename(FileGrid);
+            string previousPath = _tabs.ActiveTab?.State.ActivePath ?? "";
+
+            _tabs.CommitActiveRename(_activeView);
             _tabs.DispatchActive(new TabAction.NavigateTo(target));
+
+            // If navigation was rejected (invalid path), revert address bar and show alert
+            if (_tabs.ActiveTab != null && _tabs.ActiveTab.State.ActivePath != target)
+            {
+                NavToolbar.SetPath(_module.FileProvider.GetDisplayPath(previousPath));
+                AlertOverlay.ShowAlert(
+                    $"Could not find \u201c{path}\u201d.",
+                    "Please check the spelling and try again.");
+            }
         };
     }
 
@@ -250,7 +336,7 @@ public partial class MainWindow : Window
 
     private void WireUpZoomEvents()
     {
-        FileGrid.MouseWheelPreview += e =>
+        _activeView.MouseWheelPreview += e =>
         {
             if (Keyboard.IsKeyDown(Key.LeftCtrl) || Keyboard.IsKeyDown(Key.RightCtrl))
             {
@@ -279,9 +365,9 @@ public partial class MainWindow : Window
         var selected = FindFirstSelected();
         if (selected != null)
         {
-            _tabs.CommitActiveRename(FileGrid);
+            _tabs.CommitActiveRename(_activeView);
             _interaction.BeginRename(selected);
-            FileGrid.FocusRenameTextBox(selected);
+            _activeView.FocusRenameTextBox(selected);
         }
     }
 
@@ -290,7 +376,7 @@ public partial class MainWindow : Window
         var selected = FindFirstSelected();
         if (selected != null)
         {
-            _tabs.CommitActiveRename(FileGrid);
+            _tabs.CommitActiveRename(_activeView);
             _interaction.DeleteToTrash(selected);
         }
     }
@@ -315,7 +401,7 @@ public partial class MainWindow : Window
 
     private void Refresh_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        _tabs.CommitActiveRename(FileGrid);
+        _tabs.CommitActiveRename(_activeView);
         _tabs.DispatchActive(new TabAction.BeginRefresh());
     }
 
@@ -325,112 +411,10 @@ public partial class MainWindow : Window
     private void ZoomOut_Executed(object sender, ExecutedRoutedEventArgs e) =>
         StatusBar.ZoomSlider.Value = Math.Max(StatusBar.ZoomSlider.Minimum, StatusBar.ZoomSlider.Value - 1);
 
-    // ── Tab management commands ────────────────────────────────────
-
-    private void NewTab_Executed(object sender, ExecutedRoutedEventArgs e) =>
-        _tabs.AddTab();
-
-    private void CloseTab_Executed(object sender, ExecutedRoutedEventArgs e)
-    {
-        if (_tabs.ActiveTab != null)
-            _tabs.CloseTab(_tabs.ActiveTab.State.TabId);
-    }
-
-    private void NextTab_Executed(object sender, ExecutedRoutedEventArgs e)
-    {
-        if (_tabs.Tabs.Count < 2) return;
-        int currentIdx = _tabs.ActiveTab != null ? _tabs.Tabs.IndexOf(_tabs.ActiveTab) : -1;
-        _tabs.SetActiveTab((currentIdx + 1) % _tabs.Tabs.Count);
-    }
-
-    private void PrevTab_Executed(object sender, ExecutedRoutedEventArgs e)
-    {
-        if (_tabs.Tabs.Count < 2) return;
-        int currentIdx = _tabs.ActiveTab != null ? _tabs.Tabs.IndexOf(_tabs.ActiveTab) : -1;
-        _tabs.SetActiveTab((currentIdx - 1 + _tabs.Tabs.Count) % _tabs.Tabs.Count);
-    }
-
     // ── Tab strip UI ───────────────────────────────────────────────
 
     private void AddTabButton_Click(object sender, RoutedEventArgs e) =>
         _tabs.AddTab();
-
-    private void RefreshTabStrip()
-    {
-        foreach (var (tabId, handler) in _tabTitleHandlers)
-        {
-            var store = _tabs.Tabs.FirstOrDefault(t => t.State.TabId == tabId);
-            if (store != null)
-                store.StateChanged -= handler;
-        }
-        _tabTitleHandlers.Clear();
-        TabStripPanel.Children.Clear();
-
-        foreach (var store in _tabs.Tabs)
-        {
-            var tabId = store.State.TabId;
-            bool isActive = _tabs.ActiveTab?.State.TabId == tabId;
-
-            var titleBlock = new TextBlock
-            {
-                Text = _module.FileProvider.GetDisplayTitle(store.State.ActivePath),
-                VerticalAlignment = VerticalAlignment.Center,
-                FontSize = (double)FindResource("FontTabTitleSize"),
-                Foreground = (Brush)FindResource("TextPrimaryBrush"),
-                MinWidth = 40,
-                MaxWidth = 150,
-                TextTrimming = TextTrimming.CharacterEllipsis,
-            };
-
-            var closeButton = new Button
-            {
-                Content = "×",
-                Width = 16,
-                Height = 16,
-                FontSize = (double)FindResource("FontTabCloseSize"),
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Foreground = (Brush)FindResource("TextSecondaryBrush"),
-                Cursor = Cursors.Hand,
-                Focusable = false,
-                VerticalAlignment = VerticalAlignment.Center,
-                Tag = tabId,
-            };
-            closeButton.Click += (_, _) => _tabs.CloseTab(tabId);
-
-            var stack = new StackPanel
-            {
-                Orientation = Orientation.Horizontal,
-                VerticalAlignment = VerticalAlignment.Center,
-            };
-            stack.Children.Add(titleBlock);
-            stack.Children.Add(closeButton);
-
-            var border = new Border
-            {
-                Padding = new Thickness(8, 0, 4, 0),
-                Height = 24,
-                Cursor = Cursors.Hand,
-                CornerRadius = new CornerRadius(4, 4, 0, 0),
-                Margin = new Thickness(1, 0, 0, 0),
-                Background = isActive
-                    ? (Brush)FindResource("SidebarBrush")
-                    : Brushes.Transparent,
-                Child = stack,
-                Tag = tabId,
-            };
-            border.MouseLeftButtonDown += (_, _) => _tabs.SetActiveTab(tabId);
-
-            void TitleHandler(TabStateRecord s)
-            {
-                if (s.TabId == tabId) titleBlock.Text = _module.FileProvider.GetDisplayTitle(s.ActivePath);
-            }
-            _tabTitleHandlers[tabId] = TitleHandler;
-            store.StateChanged += TitleHandler;
-
-            TabStripPanel.Children.Add(border);
-        }
-    }
 
     // ── WndProc: clamp maximized size to per-monitor work area ─────
 

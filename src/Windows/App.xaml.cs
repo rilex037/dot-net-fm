@@ -34,10 +34,12 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Pass raw CLI arg through — no resolution here.
-        // The module system handles routing based on the argument.
-        // Empty string = no arg = use default module's open behavior.
-        string initialPath = e.Args.Length > 0 ? e.Args[0] : "";
+        // Initialize key-value store — bootstraps .default + .{user} files.
+        AppStore.Init(AppContext.BaseDirectory);
+
+        // Join all CLI args — handles unquoted paths with spaces from shell launch.
+        // A file manager always receives a single path; OS may split on spaces if unquoted.
+        string initialPath = e.Args.Length > 0 ? string.Join(" ", e.Args) : "";
 
         var mainWindow = new MainWindow(initialPath);
         mainWindow.Show();

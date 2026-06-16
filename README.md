@@ -125,7 +125,3 @@ Define sections, items, icons, and bookmarks. Paths support environment variable
 This project is licensed under the [MIT License](LICENSE).
 
 ---
-
-<p align="center">
-  Built with ❤️ using C# and WPF — because Windows deserves a better file manager.
-</p>

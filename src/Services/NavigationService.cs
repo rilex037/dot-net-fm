@@ -36,13 +36,14 @@ public class NavigationService
 
     /// <summary>
     /// Navigates to a directory, optionally pushing the current path onto the back stack.
+    /// Returns true if the path was valid and navigation started, false otherwise.
     /// </summary>
-    public void NavigateTo(string targetPath, bool pushToHistory = true)
+    public bool NavigateTo(string targetPath, bool pushToHistory = true)
     {
-        if (string.IsNullOrEmpty(targetPath)) return;
+        if (string.IsNullOrEmpty(targetPath)) return false;
 
         bool isVirtualRoot = _fileProvider.IsVirtualRoot(targetPath);
-        if (!isVirtualRoot && !Directory.Exists(targetPath)) return;
+        if (!isVirtualRoot && !Directory.Exists(targetPath)) return false;
 
         if (pushToHistory && !string.IsNullOrEmpty(_currentPath))
         {
@@ -53,6 +54,7 @@ public class NavigationService
         _currentPath = targetPath;
         NavStateChanged?.Invoke();
         DirectoryLoaded?.Invoke(targetPath);
+        return true;
     }
 
     /// <summary>
