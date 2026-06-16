@@ -11,10 +11,11 @@
         ResizeMode="CanResize"
         Background="{StaticResource BackgroundBrush}"
         Foreground="{StaticResource TextPrimaryBrush}"
-        FontFamily="Segoe UI"
+        FontFamily="{StaticResource AppFont}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
-        TextOptions.TextFormattingMode="Display">
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
 
     <Window.InputBindings>
         <KeyBinding Command="{x:Static local:CommandIds.Exit}"     Key="F4"       Modifiers="Alt"/>

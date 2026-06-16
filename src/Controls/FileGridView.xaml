@@ -126,7 +126,7 @@
                                            Foreground="{StaticResource TextPrimaryBrush}"
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
-                                           LineHeight="14"
+                                           LineHeight="12"
                                            TextWrapping="Wrap">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">

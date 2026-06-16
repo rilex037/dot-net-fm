@@ -5,15 +5,19 @@
     <Application.Resources>
         <local:StringToUriConverter x:Key="StringToUriConverter"/>
 
+        <!-- Custom Fonts -->
+        <FontFamily x:Key="AppFont">pack://application:,,,/Assets/Fonts/NotoSans-Regular.ttf#NotoSans Regular</FontFamily>
+        <FontFamily x:Key="AppFontBold">pack://application:,,,/Assets/Fonts/NotoSans-SemiBold.ttf#NotoSans SemiBold</FontFamily>
+
         <!-- Global Styles -->
         <Style TargetType="Window">
             <Setter Property="Background" Value="{StaticResource BackgroundBrush}"/>
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         </Style>
 
         <Style TargetType="TextBlock">
-            <Setter Property="FontFamily" Value="Segoe UI"/>
+            <Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         </Style>
 
