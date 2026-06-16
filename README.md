@@ -29,89 +29,117 @@ Every pixel, every interaction, and every component is **built from the ground u
 
 Most Windows file managers are either stuck in the Windows 7 era or packed with features nobody asked for. DotNetFM takes a different approach: a **minimal, focused file manager** that feels right at home on a modern desktop, borrowing the best ideas from the Linux world while embracing native Windows capabilities under the hood.
 
-## Features
+## DotNetFM Architecture
 
-| Feature                        | Description                                                                           |
-| ------------------------------ | ------------------------------------------------------------------------------------- |
-| **Multi-Tab Browsing**         | Open multiple directories in tabs — just like a browser, but for your files.          |
-| **Linux-Inspired Sidebar**     | Configurable sidebar with bookmarks, system directories, and drag-to-reorder support. |
-| **Dark Theme**                 | A carefully crafted dark UI, fully configurable via JSON — no XAML editing required.  |
-| **Native Context Menus**       | Real Windows shell context menus via COM interop — not a cheap imitation.             |
-| **Drag & Drop**                | Full drag-and-drop support for moving and copying files.                              |
-| **Rubber Band Selection**      | Click and drag to select multiple items — exactly how you'd expect it to work.        |
-| **Zoom Slider**                | Smooth icon size adjustment from tiny thumbnails to large previews.                   |
-| **Asynchronous Icon Loading**  | Icons load in the background without freezing the UI — even for thousands of files.   |
-| **SVG Icons**                  | Vector-based sidebar and UI icons rendered via SharpVectors.                          |
-| **Directory Watching**         | Auto-refreshes when files change on disk.                                             |
-| **Renaming & File Operations** | Rename, delete (to Recycle Bin), copy, cut, and paste — with inline rename support.   |
-| **Breadcrumb Address Bar**     | Type a path or click to navigate — with keyboard shortcuts.                           |
-| **Configurable Everything**    | Sidebar layout, theme colors, spacing, fonts — all driven by JSON config files.       |
+## System Overview
 
-## Getting Started
-
-### Prerequisites
-
-- **Windows 10/11**
-- **[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)** or later
-
-### Build & Run
-
-```bash
-# Clone the repository
-git clone https://github.com/rilex037/dot-net-fm.git
-cd dot-net-fm
-
-# Build
-dotnet build dot-net-fm.csproj
-
-# Run
-dotnet run --project dot-net-fm.csproj
-```
-
-Or open `dot-net-fm.csproj` directly in **Visual Studio 2022** and hit **F5**.
-
-## Project Structure
+WPF desktop file manager with module-based backend system.
 
 ```
-dot-net-fm/
-├── Assets/
-│   └── Icons/              # SVG icons for sidebar & UI
-├── Config/
-│   ├── sidebar-config.json # Sidebar layout & bookmarks
-│   └── theme-config.json   # Colors, spacing, fonts, sizing
-├── src/
-│   ├── Controls/           # WPF UserControls (FileGridView, SidebarPanel, NavigationToolbar, etc.)
-│   ├── Definitions/        # Command IDs & constants
-│   ├── Helpers/            # Native Win32 interop, icon loading, utilities
-│   ├── Models/             # FolderItem, SidebarItem data models
-│   ├── Properties/         # Assembly info
-│   ├── Services/           # Core logic (Navigation, Tabs, Clipboard, DragDrop, Theming, etc.)
-│   └── Windows/            # App.xaml, MainWindow
-├── DotNetFM.png            # Project banner
-└── dot-net-fm.csproj       # Project file
+┌─────────────────────────────────────────────┐
+│                  DOTNETFM                   │
+│  WPF + .NET 8 + Modular Architecture        │
+└─────────────────────────────────────────────┘
 ```
 
-## Architecture
+## Layered Design
 
-DotNetFM follows a **service-oriented architecture** with clear separation of concerns:
+```
+┌─────────────────────────────────────────┐
+│         UI Layer (WPF)                  │
+│  MainWindow + Controls                  │
+└──────────────┬──────────────────────────┘
+               │
+┌──────────────▼───────────────────────────┐
+│         Service Layer                    │
+│  TabManager / FileInteraction / etc.     │
+└──────────────┬───────────────────────────┘
+               │
+┌──────────────▼───────────────────────────┐
+│    Core Abstractions (Interfaces)        │
+│  IModule / IFileProvider / IFileOps      │
+└──────────────┬───────────────────────────┘
+               │
+┌──────────────▼───────────────────────────┐
+│         Module Implementations           │
+│  WindowsModule / (future modules)        │
+└──────────────────────────────────────────┘
+```
 
-- **`TabStore`** / **`TabReducer`** — State management for each tab, inspired by Redux-style reducers.
-- **`NavigationService`** — Handles directory traversal, back/forward history, and async file listing.
-- **`FileInteractionService`** — Orchestrates user interactions: click, rename, delete, copy, cut, paste.
-- **`ThemeService`** — Loads and applies the full theme from `theme-config.json` at startup.
-- **`SidebarService`** — Manages sidebar sections, bookmarks, and path resolution.
-- **`ShellContextMenuService`** — Direct COM interop with the Windows Shell for native context menus.
-- **`DirectoryWatcherService`** — File system change monitoring with debounced notifications.
+## Core Abstractions
 
-## Configuration
+```
+IModule
+├── FileProvider    → IFileProvider
+├── FileOperations  → IFileOperations  
+├── IconProvider    → IIconProvider
+├── ContextMenu     → IContextMenuProvider (optional)
+└── DirectoryWatcher → IDirectoryWatcher
+```
 
-### Theme (`Config/theme-config.json`)
+## Module Discovery
 
-Customize colors, spacing, fonts, border radii, and sizing — all from a single JSON file. No XAML editing needed.
+```
+App startup
+  └── ModuleRegistry.ScanAndRegisterAll()
+        ├── Scan for DotNetFM.Module.*.dll
+        ├── Load assemblies
+        ├── Find IModule implementations
+        └── Register by UriPrefix
+              ("windows", "shell") → WindowsModule
+```
 
-### Sidebar (`Config/sidebar-config.json`)
+## Data Flow
 
-Define sections, items, icons, and bookmarks. Paths support environment variables like `%USERPROFILE%`.
+```
+User Action
+  └── FileGridView
+        └── FileInteractionService
+              └── TabManager.DispatchActive(action)
+                    └── TabReducer applies action
+                          └── IModule.FileProvider.GetContents()
+                                └── Returns FolderItems
+                                      └── TabStore.StateChanged
+                                            └── MainWindow updates UI
+```
+
+## Tab State Management
+
+```
+TabManager
+├── ObservableCollection<TabStore>
+├── ActiveTab
+└── AddTab / SetActiveTab / DispatchActive
+
+TabStore
+├── State (TabStateRecord)
+│   ├── ActivePath
+│   ├── CanGoBack / CanGoForward
+│   ├── IconSize
+│   └── StatusText
+├── Folders (ObservableCollection<FolderItem>)
+└── StateChanged event
+```
+
+## UI Components
+
+```
+MainWindow
+├── TitleBar
+├── SidebarPanel (module-contributed sections)
+├── FileViewContainer → FileGridView
+├── NavigationToolbar (Back/Forward/Up/Address)
+├── TabStripBuilder
+└── StatusBar (zoom + status)
+```
+
+## Key Patterns
+
+- **Module auto-discovery** via assembly scan - zero-config extensibility
+- **Thin MainWindow** - logic lives in services
+- **TabStore + TabReducer** - unidirectional state flow
+- **Per-module sidebar sections** - each backend contributes its own locations
+- **UriPrefix routing** - maps paths to modules
 
 ## Tech Stack
 
