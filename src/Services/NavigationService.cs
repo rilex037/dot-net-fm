@@ -4,7 +4,7 @@ using System.IO;
 using System.Threading.Tasks;
 using System.Windows;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Handles all navigation state and logic: NavigateTo, LoadDirectory, back/forward/up stacks.
@@ -13,8 +13,6 @@ namespace dot_net_fm;
 /// </summary>
 public class NavigationService
 {
-    public const string MyComputerPath = "::mycomputer";
-
     private readonly string _userProfilePath;
     private readonly IFileProvider _fileProvider;
     private readonly IIconProvider? _iconProvider;
@@ -38,13 +36,14 @@ public class NavigationService
 
     /// <summary>
     /// Navigates to a directory, optionally pushing the current path onto the back stack.
+    /// Returns true if the path was valid and navigation started, false otherwise.
     /// </summary>
-    public void NavigateTo(string targetPath, bool pushToHistory = true)
+    public bool NavigateTo(string targetPath, bool pushToHistory = true)
     {
-        if (string.IsNullOrEmpty(targetPath)) return;
+        if (string.IsNullOrEmpty(targetPath)) return false;
 
-        bool isSpecialPath = targetPath == MyComputerPath;
-        if (!isSpecialPath && !Directory.Exists(targetPath)) return;
+        bool isVirtualRoot = _fileProvider.IsVirtualRoot(targetPath);
+        if (!isVirtualRoot && !Directory.Exists(targetPath)) return false;
 
         if (pushToHistory && !string.IsNullOrEmpty(_currentPath))
         {
@@ -55,6 +54,7 @@ public class NavigationService
         _currentPath = targetPath;
         NavStateChanged?.Invoke();
         DirectoryLoaded?.Invoke(targetPath);
+        return true;
     }
 
     /// <summary>

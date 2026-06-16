@@ -1,7 +1,7 @@
 using System.IO;
 using Microsoft.VisualBasic.FileIO;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Windows-specific IFileOperations implementation for local filesystem operations.

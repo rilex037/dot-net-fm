@@ -1,7 +1,7 @@
 using System.IO;
 using System.Reflection;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Registry that discovers and manages modules. Scans assemblies for
@@ -10,49 +10,61 @@ namespace dot_net_fm;
 /// </summary>
 public sealed class ModuleRegistry
 {
-    private readonly Dictionary<string, IModule> _modules = new(StringComparer.OrdinalIgnoreCase);
+    private readonly Dictionary<string, IModule> _prefixMap = new(StringComparer.OrdinalIgnoreCase);
+    private readonly List<IModule> _orderedModules = new();
 
-    /// <summary>All registered modules.</summary>
-    public IReadOnlyList<IModule> Modules => _modules.Values.ToList();
+    /// <summary>All registered modules (deduplicated, in registration order).</summary>
+    public IReadOnlyList<IModule> Modules => _orderedModules;
+
+    /// <summary>The default module for no-argument startup (first registered module).</summary>
+    public IModule DefaultModule => _orderedModules.Count > 0
+        ? _orderedModules[0]
+        : throw new InvalidOperationException("No modules registered.");
 
     /// <summary>
-    /// Registers a module. Each module is identified by its URI prefix.
+    /// Registers a module. Reads its URI prefixes and builds a prefix→module mapping.
     /// </summary>
     public void Register(IModule module)
     {
-        _modules[module.UriPrefix] = module;
+        _orderedModules.Add(module);
+
+        foreach (var prefix in module.UriPrefixes)
+            _prefixMap[prefix] = module;
     }
 
     /// <summary>
-    /// Finds the module that can handle the given URI.
-    /// Returns the default module if no specific match is found.
+    /// Finds the module by URI prefix — O(1) dictionary lookup.
     /// </summary>
     public IModule? FindByUri(ModuleUri uri)
     {
         if (!string.IsNullOrEmpty(uri.Prefix) &&
-            _modules.TryGetValue(uri.Prefix, out var module))
+            _prefixMap.TryGetValue(uri.Prefix, out var module))
             return module;
 
         return null;
     }
 
     /// <summary>
-    /// Finds the module that can handle the given path.
-    /// Checks each module's CanHandle method.
+    /// Finds the module for the given path.
+    /// 1. URI scheme → direct prefix map lookup.
+    /// 2. Bare string → check if it starts with any registered prefix.
     /// </summary>
     public IModule? FindByPath(string path)
     {
-        // First try to parse as a URI with prefix
+        if (string.IsNullOrEmpty(path))
+            return null;
+
+        // URI-style: "windows://C:\Users" → parse scheme, direct lookup
         if (ModuleUri.TryParse(path, out var uri) && !string.IsNullOrEmpty(uri.Prefix))
         {
-            if (_modules.TryGetValue(uri.Prefix, out var mod))
+            if (_prefixMap.TryGetValue(uri.Prefix, out var mod))
                 return mod;
         }
 
-        // Fall back to checking each module's CanHandle
-        foreach (var module in _modules.Values)
+        // Bare string: match against registered prefixes
+        foreach (var (prefix, module) in _prefixMap)
         {
-            if (module.CanHandle(path))
+            if (path.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
                 return module;
         }
 

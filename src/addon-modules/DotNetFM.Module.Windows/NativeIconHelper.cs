@@ -6,7 +6,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media.Imaging;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Shell icon / thumbnail helper.
@@ -72,11 +72,8 @@ public static class NativeIconHelper
         [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]  public string szTypeName;
     }
 
-    private const uint SHGFI_ICON           = 0x0100;
-    private const uint SHGFI_LARGEICON      = 0x0000;
-    private const uint SHGFI_USEFILEATTRIBS = 0x0010;
-    private const uint FILE_ATTRIBUTE_NORMAL= 0x0080;
-    private const uint FILE_ATTRIBUTE_DIR   = 0x0010;
+    private const uint SHGFI_ICON      = 0x0100;
+    private const uint SHGFI_LARGEICON = 0x0000;
 
     // ── Public API (no caching — fresh shell call every time) ────────────────
 
@@ -85,14 +82,7 @@ public static class NativeIconHelper
     /// Every call fetches from the shell — no cache.
     /// </summary>
     public static BitmapSource? GetIconForFile(string filePath)
-        => FetchIconViaShgfi(filePath, FILE_ATTRIBUTE_NORMAL, useAttribs: false);
-
-    /// <summary>
-    /// Synchronous hi-res icon for a directory via IShellItemImageFactory at the given size.
-    /// Every call fetches from the shell — no cache.
-    /// </summary>
-    public static BitmapSource? GetIconForDirectory(string dirPath, int size = 256)
-        => FetchHiResIcon(dirPath, size);
+        => FetchIconViaShgfi(filePath);
 
     /// <summary>
     /// Async hi-res thumbnail for files at the exact requested pixel size.
@@ -105,7 +95,9 @@ public static class NativeIconHelper
         try
         {
             cancellationToken.ThrowIfCancellationRequested();
-            return await Task.Run(() => FetchThumbnailOrHiResIcon(filePath, requestedSize), cancellationToken).ConfigureAwait(false);
+            return await Task.Run(
+                () => FetchFromImageFactory(filePath, requestedSize, SIIGBF.BiggerSizeOk | SIIGBF.ResizeToFit),
+                cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -115,7 +107,7 @@ public static class NativeIconHelper
 
     // ── Hi-res icon via IShellItemImageFactory ────────────────────────────────
 
-    private static BitmapSource? FetchHiResIcon(string path, int size = 256)
+    private static BitmapSource? FetchFromImageFactory(string path, int size, SIIGBF flags)
     {
         try
         {
@@ -124,9 +116,7 @@ public static class NativeIconHelper
             {
                 try
                 {
-                    int hr = factory.GetImage(new SIZE { cx = size, cy = size },
-                        SIIGBF.BiggerSizeOk | SIIGBF.IconOnly, out var hBitmap);
-
+                    int hr = factory.GetImage(new SIZE { cx = size, cy = size }, flags, out var hBitmap);
                     if (hr == 0 && hBitmap != IntPtr.Zero)
                     {
                         var bs = HBitmapToBitmapSource(hBitmap);
@@ -142,47 +132,16 @@ public static class NativeIconHelper
         catch { }
 
         // Fallback — 32×32 from SHGetFileInfo
-        return FetchIconViaShgfi(path, FILE_ATTRIBUTE_DIR, useAttribs: false);
-    }
-
-    private static BitmapSource? FetchThumbnailOrHiResIcon(string filePath, int requestedSize)
-    {
-        try
-        {
-            SHCreateItemFromParsingName(filePath, IntPtr.Zero, ref IID_IShellItemImageFactory, out var obj);
-            if (obj is IShellItemImageFactory factory)
-            {
-                try
-                {
-                    int hr = factory.GetImage(new SIZE { cx = requestedSize, cy = requestedSize },
-                        SIIGBF.BiggerSizeOk | SIIGBF.ResizeToFit, out var hBitmap);
-
-                    if (hr == 0 && hBitmap != IntPtr.Zero)
-                    {
-                        var bs = HBitmapToBitmapSource(hBitmap);
-                        if (bs != null) return bs;
-                    }
-                }
-                finally
-                {
-                    Marshal.ReleaseComObject(factory);
-                }
-            }
-        }
-        catch { }
-
-        return FetchIconViaShgfi(filePath, FILE_ATTRIBUTE_NORMAL, useAttribs: false);
+        return FetchIconViaShgfi(path);
     }
 
     // ── Helpers ───────────────────────────────────────────────────────────────
 
-    private static BitmapSource? FetchIconViaShgfi(string path, uint attr, bool useAttribs)
+    private static BitmapSource? FetchIconViaShgfi(string path)
     {
-        var shfi  = new SHFILEINFO();
-        var flags = SHGFI_ICON | SHGFI_LARGEICON;
-        if (useAttribs) flags |= SHGFI_USEFILEATTRIBS;
-
-        return SHGetFileInfo(path, attr, ref shfi, (uint)Marshal.SizeOf(shfi), flags) != IntPtr.Zero
+        var shfi = new SHFILEINFO();
+        return SHGetFileInfo(path, 0, ref shfi, (uint)Marshal.SizeOf(shfi),
+                   SHGFI_ICON | SHGFI_LARGEICON) != IntPtr.Zero
             && shfi.hIcon != IntPtr.Zero
             ? IconToBitmapSource(shfi.hIcon)
             : null;

@@ -1,6 +1,6 @@
 using System.Windows.Media.Imaging;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Provides file/folder icons for a specific backend.

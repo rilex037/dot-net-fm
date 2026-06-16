@@ -1,4 +1,6 @@
 bin/
 obj/
 
+.vscode/
 .clinerules
+*.app.store

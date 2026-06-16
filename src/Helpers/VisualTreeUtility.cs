@@ -2,7 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Shared helpers for visual tree traversal.
@@ -40,6 +40,25 @@ public static class VisualTreeUtility
         while (obj != null && obj != itemsControl)
         {
             if (obj is ContentPresenter cp && cp.DataContext is FolderItem item)
+                return item;
+            obj = VisualTreeHelper.GetParent(obj);
+        }
+        return null;
+    }
+
+    /// <summary>
+    /// Finds the <see cref="SidebarItem.Item"/> data context at the given position within an ItemsControl,
+    /// walking up the visual tree from the hit-test result.
+    /// </summary>
+    public static SidebarItem.Item? GetSidebarItemAtPoint(ItemsControl itemsControl, Point position)
+    {
+        var hit = VisualTreeHelper.HitTest(itemsControl, position);
+        if (hit == null) return null;
+
+        DependencyObject? obj = hit.VisualHit;
+        while (obj != null && obj != itemsControl)
+        {
+            if (obj is Border border && border.DataContext is SidebarItem.Item item)
                 return item;
             obj = VisualTreeHelper.GetParent(obj);
         }

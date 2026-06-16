@@ -1,9 +1,9 @@
-<Window x:Class="dot_net_fm.MainWindow"
+<Window x:Class="DotNetFM.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:dot_net_fm"
+        xmlns:local="clr-namespace:DotNetFM"
         mc:Ignorable="d"
         Title="Home" Height="768" Width="1024"
         WindowStyle="None"
@@ -11,10 +11,11 @@
         ResizeMode="CanResize"
         Background="{StaticResource BackgroundBrush}"
         Foreground="{StaticResource TextPrimaryBrush}"
-        FontFamily="Segoe UI"
+        FontFamily="{StaticResource AppFont}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
-        TextOptions.TextFormattingMode="Display">
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
 
     <Window.InputBindings>
         <KeyBinding Command="{x:Static local:CommandIds.Exit}"     Key="F4"       Modifiers="Alt"/>
@@ -26,10 +27,6 @@
         <KeyBinding Command="{x:Static local:CommandIds.Refresh}"  Key="F5"/>
         <KeyBinding Command="{x:Static local:CommandIds.ZoomIn}"   Key="OemPlus"  Modifiers="Control"/>
         <KeyBinding Command="{x:Static local:CommandIds.ZoomOut}"  Key="OemMinus" Modifiers="Control"/>
-        <KeyBinding Command="{x:Static local:CommandIds.NewTab}"   Key="T"        Modifiers="Control"/>
-        <KeyBinding Command="{x:Static local:CommandIds.CloseTab}" Key="W"        Modifiers="Control"/>
-        <KeyBinding Command="{x:Static local:CommandIds.NextTab}"  Key="Tab"      Modifiers="Control"/>
-        <KeyBinding Command="{x:Static local:CommandIds.PrevTab}"  Key="Tab"      Modifiers="Control+Shift"/>
     </Window.InputBindings>
 
     <Window.CommandBindings>
@@ -51,14 +48,6 @@
                         Executed="ZoomIn_Executed"/>
         <CommandBinding Command="{x:Static local:CommandIds.ZoomOut}"
                         Executed="ZoomOut_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.NewTab}"
-                        Executed="NewTab_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.CloseTab}"
-                        Executed="CloseTab_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.NextTab}"
-                        Executed="NextTab_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.PrevTab}"
-                        Executed="PrevTab_Executed"/>
     </Window.CommandBindings>
 
     <WindowChrome.WindowChrome>
@@ -83,53 +72,59 @@
         <!-- ROW 2: Navigation Toolbar -->
         <local:NavigationToolbar x:Name="NavToolbar" Grid.Row="2"/>
 
-        <!-- ROW 3: Tab Strip + Two-Panel Layout -->
+        <!-- ROW 3: Sidebar + File Grid with Tabs -->
         <Grid Grid.Row="3">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="28"/>
-                <RowDefinition Height="*"/>
-            </Grid.RowDefinitions>
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="200"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
 
-            <!-- Tab Strip -->
-            <Grid Grid.Row="0" Background="{StaticResource ToolbarBrush}">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Disabled">
+            <!-- Sidebar -->
+            <local:SidebarPanel Grid.Column="0" x:Name="SidebarPanel"/>
+
+            <!-- File Grid + Tab Strip -->
+            <Grid Grid.Column="1">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="28"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- Tab Strip -->
+                <Grid Grid.Row="0" Background="{StaticResource ToolbarBrush}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
                     <StackPanel x:Name="TabStripPanel" Orientation="Horizontal"
-                                VerticalAlignment="Center" Margin="6,0,0,0"/>
-                </ScrollViewer>
-                <!-- Add Tab Button -->
-                <Button Grid.Column="1" x:Name="AddTabButton" Width="24" Height="22"
-                        Margin="0,0,8,0" Click="AddTabButton_Click"
-                        Background="Transparent" BorderThickness="0" Focusable="False"
-                        ToolTip="New Tab (Ctrl+T)">
-                    <Viewbox Width="12" Height="12" Stretch="Uniform">
-                        <Canvas Width="10" Height="10">
-                            <Path Data="M5,0 L5,10 M0,5 L10,5"
-                                  Stroke="{StaticResource IconSecondaryBrush}"
-                                  StrokeThickness="1.5" StrokeLineJoin="Round"/>
-                        </Canvas>
-                    </Viewbox>
-                </Button>
-            </Grid>
+                        VerticalAlignment="Center" Margin="{StaticResource SpacingTabStripMargin}"/>
 
-            <!-- Sidebar + File Grid -->
-            <Grid Grid.Row="1">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="200"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+                    <!-- Add Tab Button -->
+                    <Button Grid.Column="1" x:Name="AddTabButton" Width="24" Height="24"
+                            Margin="0,0,8,0" Click="AddTabButton_Click"
+                            Background="Transparent" BorderThickness="0" Focusable="False"
+                            ToolTip="New Tab (Ctrl+T)">
+                        <Viewbox Width="12" Height="12" Stretch="Uniform">
+                            <Canvas Width="10" Height="10">
+                                <Path Data="M5,0 L5,10 M0,5 L10,5"
+                                      Stroke="{StaticResource IconSecondaryBrush}"
+                                      StrokeThickness="1.5" StrokeLineJoin="Round"/>
+                            </Canvas>
+                        </Viewbox>
+                    </Button>
+                </Grid>
 
-                <!-- Sidebar -->
-                <local:SidebarPanel Grid.Column="0" x:Name="SidebarPanel"/>
-
-                <!-- File Grid View -->
-                <local:FileGridView Grid.Column="1" x:Name="FileGrid"/>
+                <!-- File View Container (owns all interaction logic, hosts swappable views) -->
+                <local:FileViewContainer Grid.Row="1" x:Name="FileContainer"/>
             </Grid>
         </Grid>
+
+        <!-- Alert overlay: placed in root Grid above all rows to guarantee top z-order -->
+        <local:AlertBar x:Name="AlertOverlay"
+                        Grid.Row="3"
+                        HorizontalAlignment="Center" VerticalAlignment="Center"
+                        Margin="0,0,0,40" Visibility="Collapsed"
+                        IsHitTestVisible="True"/>
 
         <!-- ROW 4: Status Bar -->
         <local:StatusLayout x:Name="StatusBar" Grid.Row="4"/>

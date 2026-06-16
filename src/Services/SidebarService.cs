@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Loads, saves, and resolves sidebar configuration from a JSON file.
@@ -88,24 +88,4 @@ public static class SidebarService
         return result;
     }
 
-    /// <summary>
-    /// Adds a bookmark and saves the config.
-    /// </summary>
-    public static void AddBookmark(SidebarItem config, string name, string path, string icon = "Home")
-    {
-        config.Bookmarks.Add(new SidebarItem.Item { Name = name, Path = path, IconPath = icon });
-        Save(config);
-    }
-
-    /// <summary>
-    /// Removes a bookmark by name and saves the config.
-    /// </summary>
-    public static bool RemoveBookmark(SidebarItem config, string name)
-    {
-        int removed = config.Bookmarks.RemoveAll(b =>
-            b.Name.Equals(name, StringComparison.OrdinalIgnoreCase));
-        if (removed > 0)
-            Save(config);
-        return removed > 0;
-    }
 }

@@ -4,7 +4,7 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Navigation toolbar with back/forward/up buttons and address bar.

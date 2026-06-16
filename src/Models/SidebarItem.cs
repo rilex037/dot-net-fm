@@ -3,24 +3,15 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text.Json.Serialization;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
-/// Root configuration for sidebar items, icon mappings, and bookmarks.
-/// Also contains nested Item (entry) and Section models.
+/// Root configuration for sidebar icon mappings.
 /// Loaded from sidebar-config.json next to the executable.
 /// </summary>
 public class SidebarItem
 {
     public Dictionary<string, string> SidebarIcons { get; set; } = new();
-    public List<Section> Sections { get; set; } = new();
-    public List<Item> Bookmarks { get; set; } = new();
-
-    public class Section
-    {
-        public string Name { get; set; } = "";
-        public List<Item> Items { get; set; } = new();
-    }
 
     public class Item : INotifyPropertyChanged
     {

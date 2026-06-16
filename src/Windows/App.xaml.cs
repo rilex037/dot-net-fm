@@ -2,7 +2,7 @@ using System;
 using System.Linq;
 using System.Windows;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Interaction logic for App.xaml
@@ -34,42 +34,15 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Parse CLI arguments. Windows shell passes folder path when "Open with" is used.
-        // Format: DotNetFM.exe [path_or_uri]
-        // Path can be a bare path like C:\Users or a module URI like windows://C:\Users
-        string initialPath = ResolveInitialPath(e.Args);
+        // Initialize key-value store — bootstraps .default + .{user} files.
+        AppStore.Init(AppContext.BaseDirectory);
+
+        // Join all CLI args — handles unquoted paths with spaces from shell launch.
+        // A file manager always receives a single path; OS may split on spaces if unquoted.
+        string initialPath = e.Args.Length > 0 ? string.Join(" ", e.Args) : "";
 
         var mainWindow = new MainWindow(initialPath);
         mainWindow.Show();
-    }
-
-    /// <summary>
-    /// Resolves the initial path from CLI args. Falls back to the first module's
-    /// default URI prefix + desktop.
-    /// </summary>
-    private static string ResolveInitialPath(string[] args)
-    {
-        // Check if a valid path was passed as CLI arg (standard Windows "Open with")
-        if (args.Length > 0)
-        {
-            var arg = args[0];
-            if (!string.IsNullOrWhiteSpace(arg))
-            {
-                // If it's already a module URI (e.g. windows://C:\Users), use it directly
-                if (arg.Contains("://", StringComparison.Ordinal))
-                    return arg;
-
-                // Otherwise it's a bare filesystem path — resolve it to a module URI
-                var module = Modules.FindByPath(arg);
-                if (module != null)
-                    return $"{module.UriPrefix}://{arg}";
-
-                return arg;
-            }
-        }
-
-        // No CLI arg — use first module's default with the Desktop path
-        return "windows://";
     }
 
     protected override void OnExit(ExitEventArgs e)

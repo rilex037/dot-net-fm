@@ -5,7 +5,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Threading;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Owns all mutable backing data for a single tab and exposes only an
@@ -18,10 +18,12 @@ public sealed class TabStore : IDisposable
 {
     private TabStateRecord _state;
     private readonly NavigationService _navigation;
+    private readonly IFileProvider _fileProvider;
     private readonly IDirectoryWatcher _directoryWatcher;
     private readonly ObservableCollection<FolderItem> _folders;
     private CancellationTokenSource? _navCts;
     private readonly Action _directoryChangedHandler;
+    private readonly Dictionary<string, double> _scrollOffsets = new();
 
     private const int BatchSize = 20;
 
@@ -40,6 +42,7 @@ public sealed class TabStore : IDisposable
 
     public TabStore(string userProfilePath, IFileProvider fileProvider, IIconProvider? iconProvider, IDirectoryWatcher directoryWatcher)
     {
+        _fileProvider = fileProvider;
         _navigation = new NavigationService(userProfilePath, fileProvider, iconProvider);
         _directoryWatcher = directoryWatcher;
         _folders = new ObservableCollection<FolderItem>();
@@ -63,7 +66,13 @@ public sealed class TabStore : IDisposable
         switch (action)
         {
             case TabAction.NavigateTo a:
-                _navigation.NavigateTo(a.Path, a.PushToHistory);
+                if (!_navigation.NavigateTo(a.Path, a.PushToHistory))
+                {
+                    // Path invalid — update status only, don't change state
+                    _state = TabReducer.Reduce(_state, new TabAction.StatusTextUpdated("Path not found"));
+                    StateChanged?.Invoke(_state);
+                    return;
+                }
                 break;
 
             case TabAction.GoBack:
@@ -151,7 +160,7 @@ public sealed class TabStore : IDisposable
         _state = TabReducer.Reduce(_state, a);
 
         _directoryWatcher.Stop();
-        if (a.Path != NavigationService.MyComputerPath)
+        if (!_fileProvider.IsVirtualRoot(a.Path))
             _directoryWatcher.Watch(a.Path);
 
         StateChanged?.Invoke(_state);
@@ -227,6 +236,16 @@ public sealed class TabStore : IDisposable
     }
 
     // ── Disposal ──────────────────────────────────────────────────
+
+    public void SaveScrollOffset(string path, double offset)
+    {
+        _scrollOffsets[path] = offset;
+    }
+
+    public double GetScrollOffset(string path)
+    {
+        return _scrollOffsets.TryGetValue(path, out var offset) ? offset : 0;
+    }
 
     public void StopWatching()
     {

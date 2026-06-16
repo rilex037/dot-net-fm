@@ -5,7 +5,7 @@ using System.Text.Json;
 using System.Windows;
 using System.Windows.Media;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Loads theme configuration from Config/theme-config.json and applies it
@@ -63,7 +63,14 @@ public static class ThemeService
             if (resources.Contains(key))
                 continue;
 
-            resources.Add(key, new CornerRadius(kvp.Value));
+            if (kvp.Value.ValueKind == JsonValueKind.Number)
+            {
+                resources.Add(key, new CornerRadius(kvp.Value.GetDouble()));
+            }
+            else if (kvp.Value.ValueKind == JsonValueKind.String)
+            {
+                resources.Add(key, ParseCornerRadius(kvp.Value.GetString()));
+            }
         }
 
         // --- Spacing -> Thickness or double ---
@@ -135,6 +142,28 @@ public static class ThemeService
         }
     }
 
+    private static CornerRadius ParseCornerRadius(string? s)
+    {
+        if (string.IsNullOrWhiteSpace(s))
+            return new CornerRadius(0);
+
+        var parts = s.Split(',');
+        if (parts.Length == 1 && double.TryParse(parts[0], out double all))
+            return new CornerRadius(all);
+        if (parts.Length == 2 &&
+            double.TryParse(parts[0], out double h) &&
+            double.TryParse(parts[1], out double v))
+            return new CornerRadius(h, v, h, v);
+        if (parts.Length == 4 &&
+            double.TryParse(parts[0], out double tl) &&
+            double.TryParse(parts[1], out double tr) &&
+            double.TryParse(parts[2], out double br) &&
+            double.TryParse(parts[3], out double bl))
+            return new CornerRadius(tl, tr, br, bl);
+
+        return new CornerRadius(0);
+    }
+
     private static Thickness ParseThickness(string? s)
     {
         if (string.IsNullOrWhiteSpace(s))
@@ -199,13 +228,13 @@ public static class ThemeService
 
 /// <summary>
 /// Deserialization model for theme-config.json.
-/// Spacing, Sizing, Opacity use JsonElement to handle mixed types (string/number).
+/// Spacing, Sizing, Opacity, Radius use JsonElement to handle mixed types (string/number).
 /// </summary>
 public class ThemeConfig
 {
     public Dictionary<string, string> Colors { get; set; } = new();
     public Dictionary<string, string> Brushes { get; set; } = new();
-    public Dictionary<string, double> Radius { get; set; } = new();
+    public Dictionary<string, JsonElement> Radius { get; set; } = new();
     public Dictionary<string, JsonElement> Spacing { get; set; } = new();
     public Dictionary<string, JsonElement> Sizing { get; set; } = new();
     public Dictionary<string, JsonElement> Fonts { get; set; } = new();

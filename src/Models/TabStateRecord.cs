@@ -1,6 +1,6 @@
 using System;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Immutable snapshot of a tab's UI-facing state.
@@ -24,7 +24,7 @@ public sealed record TabStateRecord
     public TabLoadStatus LoadStatus { get; init; } = TabLoadStatus.Idle;
 
     /// <summary>Current icon size (zoom level) in pixels.</summary>
-    public int IconSize { get; init; } = 64;
+    public int IconSize { get; init; } = int.Parse(AppStore.Read("tab.iconsize"));
 
     /// <summary>Whether there is history to go back to.</summary>
     public bool CanGoBack { get; init; }

@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Manages a collection of <see cref="TabStore"/> instances and routes
@@ -140,11 +140,11 @@ public sealed class TabManager
 
     /// <summary>
     /// Commits pending renames on the active tab before a navigation.
-    /// Delegates to <see cref="FileGridView.CommitAnyRename"/>.
+    /// Delegates to <see cref="IFileView.CommitAnyRename"/>.
     /// </summary>
-    public void CommitActiveRename(FileGridView grid)
+    public void CommitActiveRename(IFileView view)
     {
-        grid.CommitAnyRename();
+        view.CommitAnyRename();
     }
 
     // ── Lookup ────────────────────────────────────────────────────

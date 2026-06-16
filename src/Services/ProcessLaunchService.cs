@@ -1,7 +1,7 @@
 using System;
 using System.Diagnostics;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Handles launching files/processes via shell execution.

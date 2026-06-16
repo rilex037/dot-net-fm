@@ -1,6 +1,6 @@
 using System.Windows;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Windows-specific IContextMenuProvider that shows the native Windows Shell context menu

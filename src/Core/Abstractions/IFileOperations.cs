@@ -1,4 +1,4 @@
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Provides file system operations (rename, delete, transfer) for a specific backend.
