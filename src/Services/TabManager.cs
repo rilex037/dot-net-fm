@@ -2,7 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Manages a collection of <see cref="TabStore"/> instances and routes

@@ -4,7 +4,7 @@ using System.IO;
 using System.Windows;
 using System.Windows.Input;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Handles drag & drop initiation, drag-over feedback, and drop execution.

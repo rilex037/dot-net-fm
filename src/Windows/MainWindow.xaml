@@ -1,9 +1,9 @@
-<Window x:Class="dot_net_fm.MainWindow"
+<Window x:Class="DotNetFM.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:dot_net_fm"
+        xmlns:local="clr-namespace:DotNetFM"
         mc:Ignorable="d"
         Title="Home" Height="768" Width="1024"
         WindowStyle="None"
@@ -11,10 +11,11 @@
         ResizeMode="CanResize"
         Background="{StaticResource BackgroundBrush}"
         Foreground="{StaticResource TextPrimaryBrush}"
-        FontFamily="Segoe UI"
+        FontFamily="{StaticResource AppFont}"
         UseLayoutRounding="True"
         SnapsToDevicePixels="True"
-        TextOptions.TextFormattingMode="Display">
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
 
     <Window.InputBindings>
         <KeyBinding Command="{x:Static local:CommandIds.Exit}"     Key="F4"       Modifiers="Alt"/>
@@ -96,13 +97,12 @@
                     <ColumnDefinition Width="*"/>
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
-                <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto"
-                              VerticalScrollBarVisibility="Disabled">
-                    <StackPanel x:Name="TabStripPanel" Orientation="Horizontal"
-                                VerticalAlignment="Center" Margin="6,0,0,0"/>
-                </ScrollViewer>
+         
+                <StackPanel x:Name="TabStripPanel" Orientation="Horizontal"
+                    VerticalAlignment="Center" Margin="{StaticResource SpacingTabStripMargin}"/>
+             
                 <!-- Add Tab Button -->
-                <Button Grid.Column="1" x:Name="AddTabButton" Width="24" Height="22"
+                <Button Grid.Column="1" x:Name="AddTabButton" Width="24" Height="24"
                         Margin="0,0,8,0" Click="AddTabButton_Click"
                         Background="Transparent" BorderThickness="0" Focusable="False"
                         ToolTip="New Tab (Ctrl+T)">

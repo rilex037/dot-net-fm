@@ -1,7 +1,7 @@
 using System;
 using System.Windows.Threading;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Encapsulates the slow-double-click-to-rename interaction:

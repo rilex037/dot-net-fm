@@ -1,21 +1,49 @@
 using System.IO;
 
-namespace dot_net_fm;
+namespace DotNetFM;
+
+/// <summary>
+/// Helpers for detecting and resolving Windows Shell CLSID virtual paths
+/// (e.g. "::{645FF040-5081-101B-9F08-00AA002F954E}" for Recycle Bin).
+/// </summary>
+internal static class ShellPathHelper
+{
+    /// <summary>True if the path is a CLSID or ::mycomputer virtual shell path.</summary>
+    public static bool IsShellPath(string path) =>
+        path.StartsWith("::{", StringComparison.OrdinalIgnoreCase)
+        || path.Equals(MyComputerPath, StringComparison.OrdinalIgnoreCase);
+
+    public const string MyComputerPath = "::mycomputer";
+
+    /// <summary>
+    /// Maps known CLSIDs to their parent.  Currently everything goes to
+    /// MyComputer (Recycle Bin, This PC, Network, Control Panel).
+    /// </summary>
+    public static string? GetShellParent(string path)
+    {
+        if (path.Equals(MyComputerPath, StringComparison.OrdinalIgnoreCase)) return null;
+        return MyComputerPath;
+    }
+}
 
 /// <summary>
 /// Windows-specific IFileProvider implementation for local filesystem browsing.
-/// Handles drive detection, directory listing with the "My Computer" virtual root.
+/// Handles drive detection, directory listing with the "My Computer" virtual root,
+/// and shell namespace folders (Recycle Bin, This PC, Network, Control Panel).
 /// </summary>
 public sealed class WindowsFileProvider : IFileProvider
 {
     /// <summary>Special path representing "My Computer" view.</summary>
-    public const string MyComputerPath = "::mycomputer";
+    public const string MyComputerPath = ShellPathHelper.MyComputerPath;
 
     public async Task<FileResult> GetItemsAsync(string path, int offset, int count, CancellationToken cancellationToken = default)
     {
-        if (path == MyComputerPath)
+        if (ShellPathHelper.IsShellPath(path))
         {
-            var items = GetDriveItems();
+            var items = path == MyComputerPath
+                ? GetDriveItems()
+                : await Task.Run(() => ShellNamespaceEnumerator.EnumerateFolder(path), cancellationToken);
+
             return new FileResult
             {
                 Items = items,
@@ -107,8 +135,7 @@ public sealed class WindowsFileProvider : IFileProvider
 
     public string GetDisplayTitle(string path)
     {
-        if (path == MyComputerPath) return "My Computer";
-
+        if (WindowsModule.KnownClsids.TryGetValue(path, out var displayName)) return displayName;
         return string.IsNullOrEmpty(path)
             ? path
             : Path.GetFileName(path);
@@ -116,22 +143,23 @@ public sealed class WindowsFileProvider : IFileProvider
 
     public string GetDisplayPath(string path)
     {
-        if (path == MyComputerPath) return "My Computer";
+        if (WindowsModule.KnownClsids.TryGetValue(path, out var displayName)) return displayName;
         return path;
     }
 
     public string? GetParentPath(string path)
     {
-        if (path == MyComputerPath) return null;
+        if (ShellPathHelper.IsShellPath(path))
+            return ShellPathHelper.GetShellParent(path);
         var parent = Directory.GetParent(path);
         return parent?.FullName;
     }
 
-    public bool IsVirtualRoot(string path) => path == MyComputerPath;
+    public bool IsVirtualRoot(string path) => ShellPathHelper.IsShellPath(path);
 
     public string? GetFreeSpaceInfo(string path)
     {
-        if (path == MyComputerPath) return null;
+        if (ShellPathHelper.IsShellPath(path)) return null;
         try
         {
             var driveName = Path.GetPathRoot(path);

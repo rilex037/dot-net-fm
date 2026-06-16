@@ -9,7 +9,7 @@ using System.Windows.Input;
 using System.Windows.Interop;
 using System.Windows.Media;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Main window: thin layout shell that delegates all state to
@@ -18,16 +18,15 @@ namespace dot_net_fm;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private const int  WM_GETMINMAXINFO        = 0x0024;
+    private const int WM_GETMINMAXINFO = 0x0024;
     private const uint MONITOR_DEFAULTTONEAREST = 2u;
 
-    private readonly TabManager             _tabs;
+    private readonly IModule _module;
+    private readonly TabManager _tabs;
     private readonly FileInteractionService _interaction;
-    private readonly DragDropService        _dragDrop = new();
+    private readonly DragDropService _dragDrop = new();
 
-    private readonly ObservableCollection<SidebarItem.Item> _myComputerItems = new();
-    private readonly ObservableCollection<SidebarItem.Item> _networkItems    = new();
-    private readonly ObservableCollection<SidebarItem.Item> _bookmarkItems   = new();
+    private ObservableCollection<SidebarSectionView> _sidebarSections = new();
 
     private readonly string _userProfilePath;
     private TabStore? _subscribedTab;
@@ -43,30 +42,30 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
 
-        // Resolve initial path: extract raw path from module URI (e.g. "windows://C:\Users" → "C:\Users")
-        var moduleUri = ModuleUri.Parse(initialPath);
-        string rawPath = moduleUri.Path;
+        // Resolve module and path from the raw argument.
+        IModule module;
+        string rawPath;
 
-        // If no path provided or path doesn't exist, fall back to a sensible default
-        if (string.IsNullOrWhiteSpace(rawPath) || !System.IO.Directory.Exists(rawPath))
+        if (string.IsNullOrEmpty(initialPath))
         {
-            string userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-            if (!string.IsNullOrWhiteSpace(userProfilePath) && System.IO.Directory.Exists(userProfilePath))
-                rawPath = userProfilePath;
-            else
-                rawPath = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            // No CLI arg — use default module (Windows) with user profile as starting path
+            module = App.Modules.DefaultModule;
+            rawPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
-
-        // Find the module that handles this path
-        var module = App.Modules.FindByPath(rawPath);
+        else
+        {
+            // Try URI prefix lookup first, match against registered prefixes
+            module = App.Modules.FindByPath(initialPath) ?? App.Modules.DefaultModule;
+            rawPath = ModuleUri.Parse(initialPath).Path;
+        }
+        _module = module;
         _userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
         _interaction = new FileInteractionService();
-        _tabs        = new TabManager(rawPath, module);
+        _tabs = new TabManager(rawPath, module);
 
-        SidebarPanel.MyComputerItems = _myComputerItems;
-        SidebarPanel.NetworkItems    = _networkItems;
-        SidebarPanel.BookmarkItems   = _bookmarkItems;
+        SidebarPanel.Sections = _sidebarSections;
+        SidebarPanel.FileProvider = _module.FileProvider;
 
         InitializeSidebar(rawPath);
         WireUpSidebarAndNavEvents();
@@ -74,7 +73,7 @@ public partial class MainWindow : Window
         WireUpTabManagerEvents();
         WireUpInteractionEvents();
 
-        StatusBar.ZoomSlider.Value = 3;
+        StatusBar.ZoomSlider.Value = 1;
 
         _tabs.AddTab();
     }
@@ -83,10 +82,9 @@ public partial class MainWindow : Window
 
     private void InitializeSidebar(string initialPath)
     {
-        SidebarItem config = SidebarService.Load();
-        SidebarIconMapper.Initialize(config.SidebarIcons);
+        SidebarIconMapper.Initialize(SidebarService.Load().SidebarIcons);
 
-        // Use module-contributed sidebar sections instead of static config sections
+        // Use module-contributed sidebar sections — no hardcoded section names
         var module = App.Modules.FindByPath(initialPath);
         var sections = module?.GetSidebarSections()
             .OrderBy(s => s.Order)
@@ -96,39 +94,28 @@ public partial class MainWindow : Window
         {
             foreach (var section in sections)
             {
-                var target = section.Title.Equals("Network", StringComparison.OrdinalIgnoreCase)
-                    ? _networkItems
-                    : _myComputerItems;
+                var view = new SidebarSectionView { Title = section.Title };
 
                 foreach (var entry in section.Entries)
                 {
                     string resolvedPath = entry.Path;
-                    string displayName  = entry.Name;
+                    string displayName = entry.Name;
 
                     // "Home" entry shows the user's name when it points to the user profile directory
                     if (entry.Icon.Equals("Home", StringComparison.OrdinalIgnoreCase) &&
                         resolvedPath.Equals(_userProfilePath, StringComparison.OrdinalIgnoreCase))
                         displayName = Environment.UserName;
 
-                    target.Add(new SidebarItem.Item
+                    view.Items.Add(new SidebarItem.Item
                     {
-                        Name     = displayName,
+                        Name = displayName,
                         IconPath = SidebarIconMapper.GetIconPath(entry.Icon),
-                        Path     = resolvedPath,
+                        Path = resolvedPath,
                     });
                 }
-            }
-        }
 
-        // Bookmarks still come from the config file
-        foreach (var bm in config.Bookmarks)
-        {
-            _bookmarkItems.Add(new SidebarItem.Item
-            {
-                Name     = bm.Name,
-                IconPath = SidebarIconMapper.GetIconPath(bm.IconPath),
-                Path     = SidebarService.ResolvePath(bm.Path),
-            });
+                _sidebarSections.Add(view);
+            }
         }
     }
 
@@ -137,7 +124,7 @@ public partial class MainWindow : Window
     private void WireUpTabManagerEvents()
     {
         _tabs.ActiveTabChanged += OnActiveTabChanged;
-        _tabs.AllTabsClosed    += () => _tabs.AddTab();
+        _tabs.AllTabsClosed += () => _tabs.AddTab();
         _tabs.TabClosed += _ => RefreshTabStrip();
     }
 
@@ -151,11 +138,11 @@ public partial class MainWindow : Window
         _subscribedTab = newTab;
         newTab.StateChanged += OnActiveTabStateChanged;
 
-        FileGrid.Folders            = newTab.Folders;
+        FileGrid.Folders = newTab.Folders;
         FileGrid.InteractionService = _interaction;
-        FileGrid.DragDropService    = _dragDrop;
-        FileGrid.CurrentPath        = newTab.State.ActivePath;
-        FileGrid.IconSize           = newTab.State.IconSize;
+        FileGrid.DragDropService = _dragDrop;
+        FileGrid.CurrentPath = newTab.State.ActivePath;
+        FileGrid.IconSize = newTab.State.IconSize;
 
         StatusBar.SetZoomForIconSize(newTab.State.IconSize);
         ApplyStateToUI(newTab.State);
@@ -170,12 +157,13 @@ public partial class MainWindow : Window
 
     private void ApplyStateToUI(TabStateRecord state)
     {
-        Title = state.Title;
-        TitleBar.SetTitle(state.Title);
-        NavToolbar.SetPath(state.DisplayPath);
+        string displayTitle = _module.FileProvider.GetDisplayTitle(state.ActivePath);
+        Title = displayTitle;
+        TitleBar.SetTitle(displayTitle);
+        NavToolbar.SetPath(_module.FileProvider.GetDisplayPath(state.ActivePath));
         NavToolbar.UpdateNavStates(state.CanGoBack, state.CanGoForward, state.CanGoUp);
         StatusBar.SetStatus(state.StatusText);
-        FileGrid.IconSize    = state.IconSize;
+        FileGrid.IconSize = state.IconSize;
         FileGrid.CurrentPath = state.ActivePath;
     }
 
@@ -250,8 +238,8 @@ public partial class MainWindow : Window
             string target = path.Trim();
             if (string.IsNullOrEmpty(target)) return;
 
-            if (target.Equals("my computer", StringComparison.OrdinalIgnoreCase))
-                target = NavigationService.MyComputerPath;
+            // Let the module resolve display names to internal paths
+            target = _module.ResolveDisplayName(target) ?? target;
 
             _tabs.CommitActiveRename(FileGrid);
             _tabs.DispatchActive(new TabAction.NavigateTo(target));
@@ -380,40 +368,39 @@ public partial class MainWindow : Window
 
         foreach (var store in _tabs.Tabs)
         {
-            var  tabId    = store.State.TabId;
+            var tabId = store.State.TabId;
             bool isActive = _tabs.ActiveTab?.State.TabId == tabId;
 
             var titleBlock = new TextBlock
             {
-                Text              = store.State.Title,
+                Text = _module.FileProvider.GetDisplayTitle(store.State.ActivePath),
                 VerticalAlignment = VerticalAlignment.Center,
-                FontSize          = (double)FindResource("FontTabTitleSize"),
-                Foreground        = (Brush)FindResource("TextPrimaryBrush"),
-                MinWidth          = 40,
-                MaxWidth          = 150,
-                TextTrimming      = TextTrimming.CharacterEllipsis,
-                Margin            = new Thickness(0, 0, 4, 0),
+                FontSize = (double)FindResource("FontTabTitleSize"),
+                Foreground = (Brush)FindResource("TextPrimaryBrush"),
+                MinWidth = 40,
+                MaxWidth = 150,
+                TextTrimming = TextTrimming.CharacterEllipsis,
             };
 
             var closeButton = new Button
             {
-                Content           = "×",
-                Width             = 16,
-                Height            = 16,
-                FontSize          = (double)FindResource("FontTabCloseSize"),
-                Background        = Brushes.Transparent,
-                BorderThickness   = new Thickness(0),
-                Foreground        = (Brush)FindResource("TextSecondaryBrush"),
-                Cursor            = Cursors.Hand,
-                Focusable         = false,
+                Content = "×",
+                Width = 16,
+                Height = 16,
+                FontSize = (double)FindResource("FontTabCloseSize"),
+                Background = Brushes.Transparent,
+                BorderThickness = new Thickness(0),
+                Foreground = (Brush)FindResource("TextSecondaryBrush"),
+                Cursor = Cursors.Hand,
+                Focusable = false,
                 VerticalAlignment = VerticalAlignment.Center,
-                Tag               = tabId,
+                Tag = tabId,
             };
             closeButton.Click += (_, _) => _tabs.CloseTab(tabId);
 
             var stack = new StackPanel
             {
-                Orientation       = Orientation.Horizontal,
+                Orientation = Orientation.Horizontal,
                 VerticalAlignment = VerticalAlignment.Center,
             };
             stack.Children.Add(titleBlock);
@@ -421,22 +408,22 @@ public partial class MainWindow : Window
 
             var border = new Border
             {
-                Padding      = new Thickness(8, 0, 4, 0),
-                Height       = 24,
-                Cursor       = Cursors.Hand,
+                Padding = new Thickness(8, 0, 4, 0),
+                Height = 24,
+                Cursor = Cursors.Hand,
                 CornerRadius = new CornerRadius(4, 4, 0, 0),
-                Margin       = new Thickness(1, 0, 0, 0),
-                Background   = isActive
+                Margin = new Thickness(1, 0, 0, 0),
+                Background = isActive
                     ? (Brush)FindResource("SidebarBrush")
                     : Brushes.Transparent,
-                Child        = stack,
-                Tag          = tabId,
+                Child = stack,
+                Tag = tabId,
             };
             border.MouseLeftButtonDown += (_, _) => _tabs.SetActiveTab(tabId);
 
             void TitleHandler(TabStateRecord s)
             {
-                if (s.TabId == tabId) titleBlock.Text = s.Title;
+                if (s.TabId == tabId) titleBlock.Text = _module.FileProvider.GetDisplayTitle(s.ActivePath);
             }
             _tabTitleHandlers[tabId] = TitleHandler;
             store.StateChanged += TitleHandler;
@@ -453,15 +440,15 @@ public partial class MainWindow : Window
         {
             var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
 
-            IntPtr hMonitor   = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-            var    monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
+            IntPtr hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+            var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
             if (GetMonitorInfo(hMonitor, ref monitorInfo))
             {
                 var rc = monitorInfo.rcWork;
                 mmi.ptMaxPosition.x = rc.Left;
                 mmi.ptMaxPosition.y = rc.Top;
-                mmi.ptMaxSize.x     = rc.Right  - rc.Left;
-                mmi.ptMaxSize.y     = rc.Bottom - rc.Top;
+                mmi.ptMaxSize.x = rc.Right - rc.Left;
+                mmi.ptMaxSize.y = rc.Bottom - rc.Top;
                 Marshal.StructureToPtr(mmi, lParam, true);
                 handled = true;
             }
@@ -492,7 +479,7 @@ public partial class MainWindow : Window
     [StructLayout(LayoutKind.Sequential)]
     private struct MONITORINFO
     {
-        public int  cbSize;
+        public int cbSize;
         public RECT rcMonitor;
         public RECT rcWork;
         public uint dwFlags;

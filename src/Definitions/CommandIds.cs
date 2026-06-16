@@ -1,6 +1,6 @@
 using System.Windows.Input;
 
-namespace dot_net_fm;
+namespace DotNetFM;
 
 /// <summary>
 /// Central definition of all application-level keyboard shortcuts.
