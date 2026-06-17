@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="DotNetFM.png" alt="DotNetFM Banner" width="512" />
+  <img src="cover.png" alt="DotNetFM Banner" width="512" />
 </p>
 
 <h1 align="center">DotNetFM</h1>
