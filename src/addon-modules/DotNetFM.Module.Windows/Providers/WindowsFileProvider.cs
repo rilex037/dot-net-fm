@@ -163,6 +163,8 @@ public sealed class WindowsFileProvider : IFileProvider
 
     public bool IsVirtualRoot(string path) => ShellPathHelper.IsShellPath(path);
 
+    public bool PathExists(string path) => ShellPathHelper.IsShellPath(path) || Directory.Exists(path);
+
     public string? GetFreeSpaceInfo(string path)
     {
         if (ShellPathHelper.IsShellPath(path)) return null;

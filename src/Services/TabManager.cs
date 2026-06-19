@@ -176,6 +176,7 @@ file sealed class DummyFileProvider : IFileProvider
     public string GetDisplayPath(string path) => path;
     public string? GetParentPath(string path) => null;
     public bool IsVirtualRoot(string path) => true;
+    public bool PathExists(string path) => true;
     public string? GetFreeSpaceInfo(string path) => null;
 }
 

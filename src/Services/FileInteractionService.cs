@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Windows;
 
 namespace DotNetFM;
@@ -10,13 +8,18 @@ namespace DotNetFM;
 /// all visual-tree work is the caller's responsibility.
 /// Handles: click → rename/open dispatch, clipboard operations, delete, file transfer.
 /// </summary>
-public sealed class FileInteractionService
+public sealed class FileInteractionService(
+    ClickTracker? clickTracker = null,
+    RenameManager? renameManager = null,
+    FileOperationService? fileOps = null,
+    ProcessLaunchService? processLauncher = null,
+    ClipboardService? clipboard = null)
 {
-    private readonly ClickTracker _clickTracker;
-    private readonly RenameManager _renameManager;
-    private readonly FileOperationService _fileOps;
-    private readonly ProcessLaunchService _processLauncher;
-    private readonly ClipboardService _clipboard;
+    private readonly ClickTracker _clickTracker = clickTracker ?? new();
+    private readonly RenameManager _renameManager = renameManager ?? new();
+    private readonly FileOperationService _fileOps = fileOps ?? new();
+    private readonly ProcessLaunchService _processLauncher = processLauncher ?? new();
+    private readonly ClipboardService _clipboard = clipboard ?? new();
 
     // ── Events (set by MainWindow) ────────────────────────────────
 
@@ -24,22 +27,6 @@ public sealed class FileInteractionService
     public Action<Point, List<string>>? ContextMenuRequested;
     /// <summary>Called when the UI should display an error message.</summary>
     public Action<string>? ErrorDisplayRequested;
-
-    // ── Construction ───────────────────────────────────────────────
-
-    public FileInteractionService(
-        ClickTracker? clickTracker = null,
-        RenameManager? renameManager = null,
-        FileOperationService? fileOps = null,
-        ProcessLaunchService? processLauncher = null,
-        ClipboardService? clipboard = null)
-    {
-        _clickTracker = clickTracker ?? new ClickTracker();
-        _renameManager = renameManager ?? new RenameManager();
-        _fileOps = fileOps ?? new FileOperationService();
-        _processLauncher = processLauncher ?? new ProcessLaunchService();
-        _clipboard = clipboard ?? new ClipboardService();
-    }
 
     // ── Public access to composed services ────────────────────────
 
@@ -55,11 +42,12 @@ public sealed class FileInteractionService
     /// Handles a mouse-down on an item (icon or name).
     /// Returns true if the caller should handle the event as handled.
     /// </summary>
-    public bool HandleItemMouseDown(FolderItem clickedItem, bool isNameClick, Action<IEnumerable<FolderItem>> clearAllSelections)
+    public bool HandleItemMouseDown(FolderItem clickedItem, bool isNameClick,
+        Action<IEnumerable<FolderItem>> clearAllSelections, bool allowRename = true)
     {
         if (clickedItem.IsEditing) return false;
 
-        CommitPendingRename(clearAllSelections, null);
+        CommitPendingRename(null);
 
         var action = _clickTracker.RecordClick(clickedItem);
 
@@ -70,13 +58,15 @@ public sealed class FileInteractionService
                 return true;
 
             case ClickTracker.ClickAction.BeginRename:
+                if (!allowRename)
+                    goto case ClickTracker.ClickAction.Select;
                 if (isNameClick)
                     _renameManager.StartPending(clickedItem);
                 return true;
 
             case ClickTracker.ClickAction.Select:
                 _renameManager.CancelPending();
-                clearAllSelections(Array.Empty<FolderItem>());
+                clearAllSelections([]);
                 clickedItem.IsSelected = true;
                 return true;
         }
@@ -88,7 +78,7 @@ public sealed class FileInteractionService
     /// Commits any active rename, passing the active item to the callback
     /// which the caller should use to find the TextBox and invoke <see cref="FinalizeRename"/>.
     /// </summary>
-    public bool CommitPendingRename(Action<IEnumerable<FolderItem>> clearAllSelections, Action<FolderItem>? onCommitted)
+    public bool CommitPendingRename(Action<FolderItem>? onCommitted)
     {
         return _renameManager.CommitActive(item =>
         {
@@ -146,13 +136,13 @@ public sealed class FileInteractionService
 
     public void HandleCopy(IEnumerable<FolderItem> folders)
     {
-        var paths = GetSelectedPaths(folders);
+        var paths = VisualTreeUtility.GetSelectedPaths(folders);
         _clipboard.Copy(paths);
     }
 
     public void HandleCut(IEnumerable<FolderItem> folders)
     {
-        var paths = GetSelectedPaths(folders);
+        var paths = VisualTreeUtility.GetSelectedPaths(folders);
         _clipboard.Cut(paths);
     }
 
@@ -171,16 +161,5 @@ public sealed class FileInteractionService
             if (!result.Success && result.ErrorMessage != null)
                 ErrorDisplayRequested?.Invoke(result.ErrorMessage);
         }
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────
-
-    private static List<string> GetSelectedPaths(IEnumerable<FolderItem> folders)
-    {
-        var paths = new List<string>();
-        foreach (var item in folders)
-            if (item.IsSelected)
-                paths.Add(item.FullPath);
-        return paths;
     }
 }

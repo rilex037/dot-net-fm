@@ -17,4 +17,5 @@ public static class CommandIds
     public static readonly RoutedUICommand Refresh    = new("Refresh",    "Refresh",    typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.F5) });
     public static readonly RoutedUICommand ZoomIn     = new("ZoomIn",     "ZoomIn",     typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.OemPlus, ModifierKeys.Control) });
     public static readonly RoutedUICommand ZoomOut    = new("ZoomOut",    "ZoomOut",    typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.OemMinus, ModifierKeys.Control) });
+    public static readonly RoutedUICommand SelectAll  = new("SelectAll",  "SelectAll",  typeof(CommandIds), new InputGestureCollection { new KeyGesture(Key.A, ModifierKeys.Control) });
 }

@@ -1,4 +1,3 @@
-using System;
 using System.Runtime.InteropServices;
 
 namespace DotNetFM;
@@ -8,10 +7,10 @@ namespace DotNetFM;
 /// and fast double-click (open). Uses Win32 GetDoubleClickTime for the threshold.
 /// Pure state machine — no UI dependencies.
 /// </summary>
-public sealed class ClickTracker
+public sealed partial class ClickTracker
 {
-    [DllImport("user32.dll")]
-    private static extern uint GetDoubleClickTime();
+    [LibraryImport("user32.dll")]
+    private static partial uint GetDoubleClickTime();
 
     private FolderItem? _lastClickedItem;
     private int _lastClickTick;
@@ -40,17 +39,16 @@ public sealed class ClickTracker
 
         if (_lastClickedItem == clickedItem && delta > 0 && delta <= threshold)
         {
-            // Fast double-click — open
             _lastClickedItem = null;
             return ClickAction.Open;
         }
 
+        var previousClicked = _lastClickedItem;
         _lastClickedItem = clickedItem;
         _lastClickTick = currentTick;
 
-        if (clickedItem.IsSelected)
+        if (clickedItem.IsSelected && previousClicked == clickedItem)
         {
-            // Slow double-click (if clicked again after timer expires) — rename
             return ClickAction.BeginRename;
         }
 

@@ -1,14 +1,9 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
+using System.Windows.Shell;
 
 namespace DotNetFM;
 
@@ -39,6 +34,30 @@ public partial class MainWindow : Window
     {
         base.OnSourceInitialized(e);
         ((HwndSource)PresentationSource.FromVisual(this)).AddHook(WndProc);
+        UpdateChromeForWindowState();
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        UpdateChromeForWindowState();
+    }
+
+    private void UpdateChromeForWindowState()
+    {
+        var chrome = WindowChrome.GetWindowChrome(this);
+        if (chrome == null) return;
+
+        if (WindowState == WindowState.Maximized)
+        {
+            chrome.ResizeBorderThickness = new Thickness(0);
+            chrome.CornerRadius = new CornerRadius(0);
+        }
+        else
+        {
+            chrome.ResizeBorderThickness = new Thickness(6);
+            chrome.CornerRadius = new CornerRadius(20);
+        }
     }
 
     public MainWindow(string initialPath = "")
@@ -71,7 +90,7 @@ public partial class MainWindow : Window
             rawPath = ModuleUri.Parse(initialPath).Path;
 
             // Validate shell-provided path — fall back to user profile if it doesn't exist
-            bool pathExists = module.FileProvider.IsVirtualRoot(rawPath) || Directory.Exists(rawPath);
+            bool pathExists = module.FileProvider.PathExists(rawPath);
             if (!pathExists)
                 rawPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
@@ -362,23 +381,45 @@ public partial class MainWindow : Window
 
     private void Rename_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        var selected = FindFirstSelected();
-        if (selected != null)
+        if (_tabs.ActiveTab == null) return;
+
+        FolderItem? selected = null;
+        int count = 0;
+        foreach (var item in _tabs.ActiveTab.Folders)
         {
-            _tabs.CommitActiveRename(_activeView);
-            _interaction.BeginRename(selected);
-            _activeView.FocusRenameTextBox(selected);
+            if (!item.IsSelected) continue;
+            count++;
+            if (count == 1)
+                selected = item;
+            if (count > 1)
+            {
+                selected = null;
+                break;
+            }
         }
+
+        if (selected == null) return;
+
+        _tabs.CommitActiveRename(_activeView);
+        _interaction.BeginRename(selected);
+        _activeView.FocusRenameTextBox(selected);
     }
 
     private void Delete_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        var selected = FindFirstSelected();
-        if (selected != null)
-        {
-            _tabs.CommitActiveRename(_activeView);
-            _interaction.DeleteToTrash(selected);
-        }
+        if (_tabs.ActiveTab == null) return;
+
+        _tabs.CommitActiveRename(_activeView);
+        foreach (var item in _tabs.ActiveTab.Folders.Where(i => i.IsSelected))
+            _interaction.DeleteToTrash(item);
+    }
+
+    private void SelectAll_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_tabs.ActiveTab == null) return;
+
+        foreach (var item in _tabs.ActiveTab.Folders)
+            item.IsSelected = true;
     }
 
     private void Copy_Executed(object sender, ExecutedRoutedEventArgs e)
@@ -471,11 +512,4 @@ public partial class MainWindow : Window
 
     // ── Helpers ────────────────────────────────────────────────────
 
-    private FolderItem? FindFirstSelected()
-    {
-        if (_tabs.ActiveTab == null) return null;
-        foreach (var item in _tabs.ActiveTab.Folders)
-            if (item.IsSelected) return item;
-        return null;
-    }
 }

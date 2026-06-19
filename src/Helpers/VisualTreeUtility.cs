@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -63,5 +64,19 @@ public static class VisualTreeUtility
             obj = VisualTreeHelper.GetParent(obj);
         }
         return null;
+    }
+
+    /// <summary>
+    /// Extracts the full paths of all selected items from a collection.
+    /// Shared by <see cref="FileInteractionService"/> and <see cref="DragDropService"/>
+    /// to avoid duplicating the same iteration pattern.
+    /// </summary>
+    public static List<string> GetSelectedPaths(IEnumerable<FolderItem> folders)
+    {
+        var paths = new List<string>();
+        foreach (var item in folders)
+            if (item.IsSelected)
+                paths.Add(item.FullPath);
+        return paths;
     }
 }

@@ -22,11 +22,6 @@ public class DragDropService
     /// </summary>
     public Action<string[], string, bool>? TransferRequested;
 
-    public void ResetDragThreshold()
-    {
-        _dragThresholdArmed = false;
-    }
-
     public void ArmDrag(Point screenPosition)
     {
         _dragStartPoint = screenPosition;
@@ -54,7 +49,7 @@ public class DragDropService
 
         _dragThresholdArmed = false;
 
-        var paths = GetSelectedPaths(folders);
+        var paths = VisualTreeUtility.GetSelectedPaths(folders);
         if (paths.Count == 0) return false;
 
         var data = new DataObject(DataFormats.FileDrop, paths.ToArray());
@@ -108,14 +103,5 @@ public class DragDropService
 
         TransferRequested?.Invoke(paths, targetDirectory, false);
         e.Handled = true;
-    }
-
-    private static List<string> GetSelectedPaths(IEnumerable<FolderItem> folders)
-    {
-        var paths = new List<string>();
-        foreach (var item in folders)
-            if (item.IsSelected)
-                paths.Add(item.FullPath);
-        return paths;
     }
 }
