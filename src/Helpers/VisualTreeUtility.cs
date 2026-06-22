@@ -66,6 +66,22 @@ public static class VisualTreeUtility
     }
 
     /// <summary>
+    /// Walks up the visual tree from <paramref name="element"/> and returns the first
+    /// <see cref="FrameworkElement.DataContext"/> of type <typeparamref name="T"/> found.
+    /// </summary>
+    public static T? FindDataContext<T>(DependencyObject element) where T : class
+    {
+        DependencyObject? current = element;
+        while (current != null)
+        {
+            if (current is FrameworkElement fe && fe.DataContext is T match)
+                return match;
+            current = VisualTreeHelper.GetParent(current);
+        }
+        return null;
+    }
+
+    /// <summary>
     /// Extracts the full paths of all selected items from a collection.
     /// Shared by <see cref="FileInteractionService"/> and <see cref="DragDropService"/>
     /// to avoid duplicating the same iteration pattern.

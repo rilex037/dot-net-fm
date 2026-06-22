@@ -1,5 +1,4 @@
 using System.Collections.ObjectModel;
-using System.Runtime.InteropServices;
 using System.Windows;
 using System.Windows.Input;
 using System.Windows.Interop;
@@ -14,21 +13,18 @@ namespace DotNetFM;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private const int WM_GETMINMAXINFO = 0x0024;
-    private const uint MONITOR_DEFAULTTONEAREST = 2u;
-
     private readonly IModule _module;
     private readonly TabManager _tabs;
     private readonly FileInteractionService _interaction;
     private readonly DragDropService _dragDrop = new();
     private readonly FileGridView _fileGrid = new();
 
-    private ObservableCollection<SidebarSectionView> _sidebarSections = new();
+    private readonly ObservableCollection<SidebarSectionView> _sidebarSections = [];
 
     private readonly string _userProfilePath;
     private TabStore? _subscribedTab;
     private readonly TabStripBuilder _tabStrip;
-    private readonly IFileView _activeView;
+    private readonly FileViewContainer _activeView;
 
     protected override void OnSourceInitialized(EventArgs e)
     {
@@ -178,7 +174,11 @@ public partial class MainWindow : Window
         {
             foreach (var section in sections)
             {
-                var view = new SidebarSectionView { Title = section.Title };
+                var view = new SidebarSectionView
+                {
+                    Id = section.Id,
+                    Title = section.Title
+                };
 
                 foreach (var entry in section.Entries)
                 {
@@ -200,6 +200,9 @@ public partial class MainWindow : Window
 
                 _sidebarSections.Add(view);
             }
+
+            foreach (var view in _sidebarSections)
+                view.RestoreCollapsedState();
         }
     }
 
@@ -478,53 +481,10 @@ public partial class MainWindow : Window
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WM_GETMINMAXINFO)
-        {
-            var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+        if (msg == NativeMethods.WM_GETMINMAXINFO)
+            NativeMethods.ConstrainWindowToWorkArea(hwnd, lParam, ref handled);
 
-            IntPtr hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-            var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-            if (GetMonitorInfo(hMonitor, ref monitorInfo))
-            {
-                var rc = monitorInfo.rcWork;
-                mmi.ptMaxPosition.x = rc.Left;
-                mmi.ptMaxPosition.y = rc.Top;
-                mmi.ptMaxSize.x = rc.Right - rc.Left;
-                mmi.ptMaxSize.y = rc.Bottom - rc.Top;
-                Marshal.StructureToPtr(mmi, lParam, true);
-                handled = true;
-            }
-        }
         return IntPtr.Zero;
-    }
-
-    // ── Win32 interop for per-monitor work area ───────────────────
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct POINT { public int x, y; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT { public int Left, Top, Right, Bottom; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MINMAXINFO
-    {
-        public POINT ptReserved, ptMaxSize, ptMaxPosition, ptMinTrackSize, ptMaxTrackSize;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MONITORINFO
-    {
-        public int cbSize;
-        public RECT rcMonitor;
-        public RECT rcWork;
-        public uint dwFlags;
     }
 
     // ── Helpers ────────────────────────────────────────────────────

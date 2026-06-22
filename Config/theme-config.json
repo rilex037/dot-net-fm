@@ -38,7 +38,7 @@
     "ContentMargin": "24,24,24,24",
     "ItemPadding": "6,8,6,6",
     "CompactPadding": "2,1,2,1",
-    "OuterMargin": "0,20,0,0",
+    "SidebarTopMargin": "0,8,0,0",
     "ChildSectionMargin": "0,0,0,4",
     "SidebarItemPadding": "20,0,0,0",
     "TabStripMargin": "0,0,0,0",
@@ -48,7 +48,7 @@
     "ToolbarButtonMargin": "2,0,2,0",
     "ToolbarButtonPadding": "3,0,3,0",
     "ViewModeGroupMargin": "0,0,8,0",
-    "HeaderMargin": "8,0,0,0",
+    "SidebarSectionHeaderMargin": "12,0,0,3",
     "NavGroupLeftMargin": "6,0,0,0",
     "StatusBarIconMargin": "6,0,0,0",
     "StatusBarButtonMargin": "2,0,2,0",
@@ -56,7 +56,7 @@
     "IconBottomMargin": "0,0,0,8",
     "ItemCountMargin": "0,2,0,0",
     "TabItemPadding": "8,0,8,0",
-    "TabItemMargin": "0,4,0,0"
+    "TabItemMargin": "0,0,0,0"
   },
   "Sizing": {
     "TitleBarHeight": 30,
@@ -71,7 +71,7 @@
     "TabTitleMinWidth": 40,
     "TabTitleMaxWidth": 150,
     "TabCloseButtonSize": 16,
-    "TabItemHeight": 24,
+    "TabItemHeight": 30,
     "SidebarItemHeight": 26,
     "SectionHeaderHeight": 24
   },

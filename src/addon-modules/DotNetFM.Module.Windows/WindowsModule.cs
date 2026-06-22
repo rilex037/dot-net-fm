@@ -95,6 +95,7 @@ public sealed class WindowsModule : IModule
         [
             new SidebarSection
             {
+                Id = "mycomputer",
                 Title = "My Computer",
                 Order = 0,
                 Entries =

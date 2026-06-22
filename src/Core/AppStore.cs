@@ -64,13 +64,14 @@ public static class AppStore
     {
         return new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            ["tab.iconsize"]   = "64",
-            ["window.left"]    = "0",
-            ["window.top"]     = "0",
-            ["window.width"]   = "1200",
-            ["window.height"]  = "800",
-            ["tabs.count"]     = "0",
-            ["tabs.active"]    = "0",
+            ["tab.iconsize"]                    = "64",
+            ["window.left"]                     = "0",
+            ["window.top"]                      = "0",
+            ["window.width"]                    = "1200",
+            ["window.height"]                   = "800",
+            ["tabs.count"]                      = "0",
+            ["tabs.active"]                     = "0",
+            ["sidebar.mycomputer.collapsed"]    = "0",
         };
     }
 

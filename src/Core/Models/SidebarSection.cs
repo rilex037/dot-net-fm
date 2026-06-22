@@ -6,6 +6,9 @@ namespace DotNetFM;
 /// </summary>
 public sealed class SidebarSection
 {
+    /// <summary>Stable identifier for persisting UI state (e.g., collapsed/expanded).</summary>
+    public string Id { get; set; } = "";
+
     /// <summary>Section title displayed in the sidebar (e.g., "Local Files", "Network").</summary>
     public string Title { get; set; } = "";
 
