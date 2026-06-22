@@ -97,7 +97,7 @@ public partial class MainWindow : Window
         _module = module;
         _userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        _interaction = new FileInteractionService();
+        _interaction = new FileInteractionService(resolveFileOperations: path => App.Modules.FindByPath(path)?.FileOperations);
         _tabs = new TabManager(rawPath, module);
         _tabStrip = new TabStripBuilder(module, _tabs);
 
@@ -283,6 +283,23 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         };
 
+        _interaction.ConflictResolutionRequested = () =>
+        {
+            var choice = MessageBox.Show(
+                "This location already contains items with the same name." +
+                "\n\nReplace the existing items?\n\nYes = replace, No = keep existing items and copy the rest, Cancel = do nothing.",
+                "Confirm Replace",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            return choice switch
+            {
+                MessageBoxResult.Yes => IFileOperations.ConflictPolicy.Overwrite,
+                MessageBoxResult.No => IFileOperations.ConflictPolicy.Skip,
+                _ => IFileOperations.ConflictPolicy.Cancel,
+            };
+        };
+
         _interaction.RenameManager.RenameReady += item =>
         {
             _interaction.RenameManager.BeginRename(item);
@@ -291,7 +308,7 @@ public partial class MainWindow : Window
 
         _dragDrop.TransferRequested = (paths, targetDir, forceCopy) =>
         {
-            _interaction.FileOperations.TransferFiles(paths, targetDir, forceCopy);
+            _interaction.HandleDroppedFiles(paths, targetDir, forceCopy);
         };
 
         _activeView.OpenInNewTabRequested += path => _tabs.AddTab(path);

@@ -1,4 +1,3 @@
-using System;
 using System.Diagnostics;
 
 namespace DotNetFM;
@@ -21,7 +20,13 @@ public sealed class ProcessLaunchService
     {
         try
         {
-            Process.Start(new ProcessStartInfo(path) { UseShellExecute = true });
+            var startInfo = new ProcessStartInfo(path) { UseShellExecute = true };
+
+            string? dir = System.IO.Path.GetDirectoryName(System.IO.Path.GetFullPath(path));
+            if (!string.IsNullOrEmpty(dir))
+                startInfo.WorkingDirectory = dir;
+
+            Process.Start(startInfo);
             return new LaunchResult(true);
         }
         catch (Exception ex)
