@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Windows;
 
 namespace DotNetFM;
@@ -9,14 +7,27 @@ namespace DotNetFM;
 /// No WPF UI types (ItemsControl, TextBox, Canvas, Border) are accepted —
 /// all visual-tree work is the caller's responsibility.
 /// Handles: click → rename/open dispatch, clipboard operations, delete, file transfer.
+/// <para>
+/// Holds no filesystem implementation of its own. Every operation that actually touches disk
+/// (rename, delete-to-trash, transfer) is resolved per-path through <see cref="_resolveFileOperations"/>
+/// to the owning module's <see cref="IFileOperations"/> — the same module that provides the
+/// FileProvider/IconProvider/ContextMenuProvider for that path. This keeps platform-specific
+/// behavior (e.g. the Windows module's recycle-bin delete) out of this cross-platform layer
+/// entirely, instead of duplicating it here.
+/// </para>
 /// </summary>
-public sealed class FileInteractionService
+public sealed class FileInteractionService(
+    ClickTracker? clickTracker = null,
+    RenameManager? renameManager = null,
+    Func<string, IFileOperations?>? resolveFileOperations = null,
+    ProcessLaunchService? processLauncher = null,
+    ClipboardService? clipboard = null)
 {
-    private readonly ClickTracker _clickTracker;
-    private readonly RenameManager _renameManager;
-    private readonly FileOperationService _fileOps;
-    private readonly ProcessLaunchService _processLauncher;
-    private readonly ClipboardService _clipboard;
+    private readonly ClickTracker _clickTracker = clickTracker ?? new();
+    private readonly RenameManager _renameManager = renameManager ?? new();
+    private readonly Func<string, IFileOperations?> _resolveFileOperations = resolveFileOperations ?? (_ => null);
+    private readonly ProcessLaunchService _processLauncher = processLauncher ?? new();
+    private readonly ClipboardService _clipboard = clipboard ?? new();
 
     // ── Events (set by MainWindow) ────────────────────────────────
 
@@ -24,28 +35,17 @@ public sealed class FileInteractionService
     public Action<Point, List<string>>? ContextMenuRequested;
     /// <summary>Called when the UI should display an error message.</summary>
     public Action<string>? ErrorDisplayRequested;
-
-    // ── Construction ───────────────────────────────────────────────
-
-    public FileInteractionService(
-        ClickTracker? clickTracker = null,
-        RenameManager? renameManager = null,
-        FileOperationService? fileOps = null,
-        ProcessLaunchService? processLauncher = null,
-        ClipboardService? clipboard = null)
-    {
-        _clickTracker = clickTracker ?? new ClickTracker();
-        _renameManager = renameManager ?? new RenameManager();
-        _fileOps = fileOps ?? new FileOperationService();
-        _processLauncher = processLauncher ?? new ProcessLaunchService();
-        _clipboard = clipboard ?? new ClipboardService();
-    }
+    /// <summary>
+    /// Called at most once per transfer, only when something at the destination would actually
+    /// be overwritten. The UI shows a single confirmation (not one per file/folder) and returns
+    /// how to proceed for the whole batch.
+    /// </summary>
+    public Func<IFileOperations.ConflictPolicy>? ConflictResolutionRequested;
 
     // ── Public access to composed services ────────────────────────
 
     public ClickTracker ClickTracker => _clickTracker;
     public RenameManager RenameManager => _renameManager;
-    public FileOperationService FileOperations => _fileOps;
     public ProcessLaunchService ProcessLauncher => _processLauncher;
     public ClipboardService Clipboard => _clipboard;
 
@@ -55,11 +55,12 @@ public sealed class FileInteractionService
     /// Handles a mouse-down on an item (icon or name).
     /// Returns true if the caller should handle the event as handled.
     /// </summary>
-    public bool HandleItemMouseDown(FolderItem clickedItem, bool isNameClick, Action<IEnumerable<FolderItem>> clearAllSelections)
+    public bool HandleItemMouseDown(FolderItem clickedItem, bool isNameClick,
+        Action<IEnumerable<FolderItem>> clearAllSelections, bool allowRename = true)
     {
         if (clickedItem.IsEditing) return false;
 
-        CommitPendingRename(clearAllSelections, null);
+        CommitPendingRename(null);
 
         var action = _clickTracker.RecordClick(clickedItem);
 
@@ -70,13 +71,15 @@ public sealed class FileInteractionService
                 return true;
 
             case ClickTracker.ClickAction.BeginRename:
+                if (!allowRename)
+                    goto case ClickTracker.ClickAction.Select;
                 if (isNameClick)
                     _renameManager.StartPending(clickedItem);
                 return true;
 
             case ClickTracker.ClickAction.Select:
                 _renameManager.CancelPending();
-                clearAllSelections(Array.Empty<FolderItem>());
+                clearAllSelections([]);
                 clickedItem.IsSelected = true;
                 return true;
         }
@@ -88,7 +91,7 @@ public sealed class FileInteractionService
     /// Commits any active rename, passing the active item to the callback
     /// which the caller should use to find the TextBox and invoke <see cref="FinalizeRename"/>.
     /// </summary>
-    public bool CommitPendingRename(Action<IEnumerable<FolderItem>> clearAllSelections, Action<FolderItem>? onCommitted)
+    public bool CommitPendingRename(Action<FolderItem>? onCommitted)
     {
         return _renameManager.CommitActive(item =>
         {
@@ -99,7 +102,14 @@ public sealed class FileInteractionService
     /// <summary>Finalizes a rename using the text from an already-known new name.</summary>
     public void FinalizeRename(FolderItem item, string newName)
     {
-        var result = _fileOps.Rename(item, newName);
+        var ops = _resolveFileOperations(item.FullPath);
+        if (ops == null)
+        {
+            ErrorDisplayRequested?.Invoke("No file operations available for this location.");
+            return;
+        }
+
+        var result = ops.Rename(item, newName);
         if (!result.Success && result.ErrorMessage != null)
             ErrorDisplayRequested?.Invoke(result.ErrorMessage);
     }
@@ -137,7 +147,14 @@ public sealed class FileInteractionService
 
     public void DeleteToTrash(FolderItem item)
     {
-        var result = _fileOps.DeleteToTrash(item.FullPath, item.IsFolder);
+        var ops = _resolveFileOperations(item.FullPath);
+        if (ops == null)
+        {
+            ErrorDisplayRequested?.Invoke("No file operations available for this location.");
+            return;
+        }
+
+        var result = ops.DeleteToTrash(item.FullPath, item.IsFolder);
         if (!result.Success && result.ErrorMessage != null)
             ErrorDisplayRequested?.Invoke(result.ErrorMessage);
     }
@@ -146,13 +163,13 @@ public sealed class FileInteractionService
 
     public void HandleCopy(IEnumerable<FolderItem> folders)
     {
-        var paths = GetSelectedPaths(folders);
+        var paths = VisualTreeUtility.GetSelectedPaths(folders);
         _clipboard.Copy(paths);
     }
 
     public void HandleCut(IEnumerable<FolderItem> folders)
     {
-        var paths = GetSelectedPaths(folders);
+        var paths = VisualTreeUtility.GetSelectedPaths(folders);
         _clipboard.Cut(paths);
     }
 
@@ -163,24 +180,46 @@ public sealed class FileInteractionService
         var paths = _clipboard.TryGetFileDropList();
         if (paths == null || paths.Count == 0) return;
 
-        var results = _fileOps.TransferFiles(paths, currentDirectory, forceCopy: !_clipboard.IsCut);
+        bool forceCopy = !_clipboard.IsCut;
         _clipboard.ResetCutFlag();
+
+        RunTransfer(paths, currentDirectory, forceCopy);
+    }
+
+    /// <summary>
+    /// Handles a drag-and-drop transfer. Resolves at most one conflict confirmation for the
+    /// whole batch (via <see cref="ConflictResolutionRequested"/>) and surfaces any per-item
+    /// failures through <see cref="ErrorDisplayRequested"/>.
+    /// </summary>
+    public void HandleDroppedFiles(string[] sources, string targetDir, bool forceCopy)
+    {
+        RunTransfer(sources, targetDir, forceCopy);
+    }
+
+    private void RunTransfer(IReadOnlyList<string> sources, string targetDir, bool forceCopy)
+    {
+        // The destination owns the write, so its module's IFileOperations does the transfer —
+        // this is also what lets a future non-Windows module merge/overwrite its own way.
+        var ops = _resolveFileOperations(targetDir);
+        if (ops == null)
+        {
+            ErrorDisplayRequested?.Invoke("No file operations available for this location.");
+            return;
+        }
+
+        var policy = IFileOperations.ConflictPolicy.Overwrite;
+        if (ops.HasNameConflicts(sources, targetDir))
+            policy = ConflictResolutionRequested?.Invoke() ?? IFileOperations.ConflictPolicy.Overwrite;
+
+        if (policy == IFileOperations.ConflictPolicy.Cancel)
+            return;
+
+        var results = ops.TransferFiles(sources, targetDir, forceCopy, policy);
 
         foreach (var result in results)
         {
             if (!result.Success && result.ErrorMessage != null)
                 ErrorDisplayRequested?.Invoke(result.ErrorMessage);
         }
-    }
-
-    // ── Helpers ───────────────────────────────────────────────────
-
-    private static List<string> GetSelectedPaths(IEnumerable<FolderItem> folders)
-    {
-        var paths = new List<string>();
-        foreach (var item in folders)
-            if (item.IsSelected)
-                paths.Add(item.FullPath);
-        return paths;
     }
 }

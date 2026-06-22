@@ -40,6 +40,14 @@ public interface IFileProvider
     bool IsVirtualRoot(string path);
 
     /// <summary>
+    /// Returns true if the given path is resolvable by this provider — either a
+    /// real filesystem directory or a provider-specific virtual location.
+    /// Callers should use this instead of pairing <see cref="IsVirtualRoot"/> with
+    /// a raw <c>Directory.Exists</c> check, which leaks backend knowledge outwards.
+    /// </summary>
+    bool PathExists(string path);
+
+    /// <summary>
     /// Gets free space info for the path if applicable, or null.
     /// </summary>
     string? GetFreeSpaceInfo(string path);

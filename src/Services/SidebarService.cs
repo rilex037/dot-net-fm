@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
 
@@ -53,39 +51,4 @@ public static class SidebarService
         string json = JsonSerializer.Serialize(config, JsonOptions);
         File.WriteAllText(ConfigPath, json);
     }
-
-    /// <summary>
-    /// Resolves a path string that may contain %ENV_VAR% tokens or special names.
-    /// </summary>
-    public static string ResolvePath(string rawPath)
-    {
-        if (string.IsNullOrWhiteSpace(rawPath))
-            return "";
-
-        // Expand %ENV_VAR% patterns
-        string result = rawPath;
-        int start = 0;
-        while (true)
-        {
-            int open = result.IndexOf('%', start);
-            if (open < 0) break;
-            int close = result.IndexOf('%', open + 1);
-            if (close < 0) break;
-
-            string varName = result.Substring(open + 1, close - open - 1);
-            string? envValue = Environment.GetEnvironmentVariable(varName);
-            if (envValue != null)
-            {
-                result = result.Substring(0, open) + envValue + result.Substring(close + 1);
-                start = open + envValue.Length;
-            }
-            else
-            {
-                start = close + 1;
-            }
-        }
-
-        return result;
-    }
-
 }

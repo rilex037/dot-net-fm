@@ -81,34 +81,90 @@ public sealed class WindowsFileOperations : IFileOperations
         }
     }
 
+    public bool HasNameConflicts(IReadOnlyList<string> sources, string targetDir)
+    {
+        string fullTargetDir = Path.GetFullPath(targetDir);
+
+        foreach (var source in sources)
+        {
+            string? sourceDir = Path.GetDirectoryName(source);
+            if (sourceDir != null &&
+                string.Equals(Path.GetFullPath(sourceDir), fullTargetDir, StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            string dest = Path.Combine(targetDir, Path.GetFileName(source));
+            if (File.Exists(dest) || Directory.Exists(dest))
+                return true;
+        }
+
+        return false;
+    }
+
     public IReadOnlyList<IFileOperations.OperationResult> TransferFiles(
-        IReadOnlyList<string> sources, string targetDir, bool forceCopy)
+        IReadOnlyList<string> sources, string targetDir, bool forceCopy,
+        IFileOperations.ConflictPolicy conflictPolicy = IFileOperations.ConflictPolicy.Overwrite)
     {
         var results = new List<IFileOperations.OperationResult>(sources.Count);
+        string fullTargetDir = Path.GetFullPath(targetDir);
 
         foreach (var source in sources)
         {
             try
             {
                 string name = Path.GetFileName(source);
-                string dest = GetUniquePath(targetDir, name);
-                bool sameDrive = string.Equals(
+                bool isMove = !forceCopy && string.Equals(
                     Path.GetPathRoot(source), Path.GetPathRoot(targetDir),
                     StringComparison.OrdinalIgnoreCase);
 
+                string? sourceDir = Path.GetDirectoryName(source);
+                bool isDuplicateInPlace = sourceDir != null &&
+                    string.Equals(Path.GetFullPath(sourceDir), fullTargetDir, StringComparison.OrdinalIgnoreCase);
+
+                string dest = Path.Combine(targetDir, name);
+                bool destExists = File.Exists(dest) || Directory.Exists(dest);
+
+                if (isDuplicateInPlace && destExists)
+                {
+                    dest = GetUniquePath(targetDir, name);
+                    destExists = false;
+                }
+                else if (destExists && conflictPolicy == IFileOperations.ConflictPolicy.Cancel)
+                {
+                    break;
+                }
+                else if (destExists && conflictPolicy == IFileOperations.ConflictPolicy.Skip)
+                {
+                    results.Add(new IFileOperations.OperationResult(true));
+                    continue;
+                }
+
                 if (File.Exists(source))
                 {
-                    if (!forceCopy && sameDrive)
+                    if (isMove && !destExists)
                         File.Move(source, dest);
+                    else if (isMove)
+                    {
+                        File.Copy(source, dest, overwrite: true);
+                        File.Delete(source);
+                    }
                     else
-                        File.Copy(source, dest, overwrite: false);
+                        File.Copy(source, dest, overwrite: true);
                 }
                 else if (Directory.Exists(source))
                 {
-                    if (!forceCopy && sameDrive)
-                        Directory.Move(source, dest);
+                    if (!destExists)
+                    {
+                        if (isMove)
+                            Directory.Move(source, dest);
+                        else
+                            FileSystem.CopyDirectory(source, dest);
+                    }
                     else
-                        FileSystem.CopyDirectory(source, dest);
+                    {
+                        bool fullyMerged = MergeDirectories(source, dest, conflictPolicy);
+                        if (isMove && fullyMerged)
+                            Directory.Delete(source, recursive: true);
+                    }
                 }
                 else
                 {
@@ -126,6 +182,33 @@ public sealed class WindowsFileOperations : IFileOperations
         }
 
         return results;
+    }
+
+    private static bool MergeDirectories(string source, string dest, IFileOperations.ConflictPolicy conflictPolicy)
+    {
+        Directory.CreateDirectory(dest);
+        bool fullyMerged = true;
+
+        foreach (var subDir in Directory.GetDirectories(source))
+        {
+            string destSubDir = Path.Combine(dest, Path.GetFileName(subDir));
+            if (!MergeDirectories(subDir, destSubDir, conflictPolicy))
+                fullyMerged = false;
+        }
+
+        foreach (var file in Directory.GetFiles(source))
+        {
+            string destFile = Path.Combine(dest, Path.GetFileName(file));
+            if (File.Exists(destFile) && conflictPolicy == IFileOperations.ConflictPolicy.Skip)
+            {
+                fullyMerged = false;
+                continue;
+            }
+
+            File.Copy(file, destFile, overwrite: true);
+        }
+
+        return fullyMerged;
     }
 
     private static string GetUniquePath(string dir, string name)

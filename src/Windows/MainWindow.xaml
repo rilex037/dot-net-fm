@@ -27,6 +27,7 @@
         <KeyBinding Command="{x:Static local:CommandIds.Refresh}"  Key="F5"/>
         <KeyBinding Command="{x:Static local:CommandIds.ZoomIn}"   Key="OemPlus"  Modifiers="Control"/>
         <KeyBinding Command="{x:Static local:CommandIds.ZoomOut}"  Key="OemMinus" Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.SelectAll}" Key="A"        Modifiers="Control"/>
     </Window.InputBindings>
 
     <Window.CommandBindings>
@@ -48,6 +49,8 @@
                         Executed="ZoomIn_Executed"/>
         <CommandBinding Command="{x:Static local:CommandIds.ZoomOut}"
                         Executed="ZoomOut_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.SelectAll}"
+                        Executed="SelectAll_Executed"/>
     </Window.CommandBindings>
 
     <WindowChrome.WindowChrome>

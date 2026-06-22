@@ -1,14 +1,8 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.ObjectModel;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices;
 using System.Windows;
-using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Interop;
-using System.Windows.Media;
+using System.Windows.Shell;
 
 namespace DotNetFM;
 
@@ -19,26 +13,47 @@ namespace DotNetFM;
 /// </summary>
 public partial class MainWindow : Window
 {
-    private const int WM_GETMINMAXINFO = 0x0024;
-    private const uint MONITOR_DEFAULTTONEAREST = 2u;
-
     private readonly IModule _module;
     private readonly TabManager _tabs;
     private readonly FileInteractionService _interaction;
     private readonly DragDropService _dragDrop = new();
     private readonly FileGridView _fileGrid = new();
 
-    private ObservableCollection<SidebarSectionView> _sidebarSections = new();
+    private readonly ObservableCollection<SidebarSectionView> _sidebarSections = [];
 
     private readonly string _userProfilePath;
     private TabStore? _subscribedTab;
     private readonly TabStripBuilder _tabStrip;
-    private readonly IFileView _activeView;
+    private readonly FileViewContainer _activeView;
 
     protected override void OnSourceInitialized(EventArgs e)
     {
         base.OnSourceInitialized(e);
         ((HwndSource)PresentationSource.FromVisual(this)).AddHook(WndProc);
+        UpdateChromeForWindowState();
+    }
+
+    protected override void OnStateChanged(EventArgs e)
+    {
+        base.OnStateChanged(e);
+        UpdateChromeForWindowState();
+    }
+
+    private void UpdateChromeForWindowState()
+    {
+        var chrome = WindowChrome.GetWindowChrome(this);
+        if (chrome == null) return;
+
+        if (WindowState == WindowState.Maximized)
+        {
+            chrome.ResizeBorderThickness = new Thickness(0);
+            chrome.CornerRadius = new CornerRadius(0);
+        }
+        else
+        {
+            chrome.ResizeBorderThickness = new Thickness(6);
+            chrome.CornerRadius = new CornerRadius(20);
+        }
     }
 
     public MainWindow(string initialPath = "")
@@ -71,14 +86,14 @@ public partial class MainWindow : Window
             rawPath = ModuleUri.Parse(initialPath).Path;
 
             // Validate shell-provided path — fall back to user profile if it doesn't exist
-            bool pathExists = module.FileProvider.IsVirtualRoot(rawPath) || Directory.Exists(rawPath);
+            bool pathExists = module.FileProvider.PathExists(rawPath);
             if (!pathExists)
                 rawPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
         }
         _module = module;
         _userProfilePath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        _interaction = new FileInteractionService();
+        _interaction = new FileInteractionService(resolveFileOperations: path => App.Modules.FindByPath(path)?.FileOperations);
         _tabs = new TabManager(rawPath, module);
         _tabStrip = new TabStripBuilder(module, _tabs);
 
@@ -159,7 +174,11 @@ public partial class MainWindow : Window
         {
             foreach (var section in sections)
             {
-                var view = new SidebarSectionView { Title = section.Title };
+                var view = new SidebarSectionView
+                {
+                    Id = section.Id,
+                    Title = section.Title
+                };
 
                 foreach (var entry in section.Entries)
                 {
@@ -181,6 +200,9 @@ public partial class MainWindow : Window
 
                 _sidebarSections.Add(view);
             }
+
+            foreach (var view in _sidebarSections)
+                view.RestoreCollapsedState();
         }
     }
 
@@ -264,6 +286,23 @@ public partial class MainWindow : Window
                 MessageBoxButton.OK, MessageBoxImage.Warning);
         };
 
+        _interaction.ConflictResolutionRequested = () =>
+        {
+            var choice = MessageBox.Show(
+                "This location already contains items with the same name." +
+                "\n\nReplace the existing items?\n\nYes = replace, No = keep existing items and copy the rest, Cancel = do nothing.",
+                "Confirm Replace",
+                MessageBoxButton.YesNoCancel,
+                MessageBoxImage.Question);
+
+            return choice switch
+            {
+                MessageBoxResult.Yes => IFileOperations.ConflictPolicy.Overwrite,
+                MessageBoxResult.No => IFileOperations.ConflictPolicy.Skip,
+                _ => IFileOperations.ConflictPolicy.Cancel,
+            };
+        };
+
         _interaction.RenameManager.RenameReady += item =>
         {
             _interaction.RenameManager.BeginRename(item);
@@ -272,7 +311,7 @@ public partial class MainWindow : Window
 
         _dragDrop.TransferRequested = (paths, targetDir, forceCopy) =>
         {
-            _interaction.FileOperations.TransferFiles(paths, targetDir, forceCopy);
+            _interaction.HandleDroppedFiles(paths, targetDir, forceCopy);
         };
 
         _activeView.OpenInNewTabRequested += path => _tabs.AddTab(path);
@@ -362,23 +401,45 @@ public partial class MainWindow : Window
 
     private void Rename_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        var selected = FindFirstSelected();
-        if (selected != null)
+        if (_tabs.ActiveTab == null) return;
+
+        FolderItem? selected = null;
+        int count = 0;
+        foreach (var item in _tabs.ActiveTab.Folders)
         {
-            _tabs.CommitActiveRename(_activeView);
-            _interaction.BeginRename(selected);
-            _activeView.FocusRenameTextBox(selected);
+            if (!item.IsSelected) continue;
+            count++;
+            if (count == 1)
+                selected = item;
+            if (count > 1)
+            {
+                selected = null;
+                break;
+            }
         }
+
+        if (selected == null) return;
+
+        _tabs.CommitActiveRename(_activeView);
+        _interaction.BeginRename(selected);
+        _activeView.FocusRenameTextBox(selected);
     }
 
     private void Delete_Executed(object sender, ExecutedRoutedEventArgs e)
     {
-        var selected = FindFirstSelected();
-        if (selected != null)
-        {
-            _tabs.CommitActiveRename(_activeView);
-            _interaction.DeleteToTrash(selected);
-        }
+        if (_tabs.ActiveTab == null) return;
+
+        _tabs.CommitActiveRename(_activeView);
+        foreach (var item in _tabs.ActiveTab.Folders.Where(i => i.IsSelected))
+            _interaction.DeleteToTrash(item);
+    }
+
+    private void SelectAll_Executed(object sender, ExecutedRoutedEventArgs e)
+    {
+        if (_tabs.ActiveTab == null) return;
+
+        foreach (var item in _tabs.ActiveTab.Folders)
+            item.IsSelected = true;
     }
 
     private void Copy_Executed(object sender, ExecutedRoutedEventArgs e)
@@ -420,62 +481,12 @@ public partial class MainWindow : Window
 
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
-        if (msg == WM_GETMINMAXINFO)
-        {
-            var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
+        if (msg == NativeMethods.WM_GETMINMAXINFO)
+            NativeMethods.ConstrainWindowToWorkArea(hwnd, lParam, ref handled);
 
-            IntPtr hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-            var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
-            if (GetMonitorInfo(hMonitor, ref monitorInfo))
-            {
-                var rc = monitorInfo.rcWork;
-                mmi.ptMaxPosition.x = rc.Left;
-                mmi.ptMaxPosition.y = rc.Top;
-                mmi.ptMaxSize.x = rc.Right - rc.Left;
-                mmi.ptMaxSize.y = rc.Bottom - rc.Top;
-                Marshal.StructureToPtr(mmi, lParam, true);
-                handled = true;
-            }
-        }
         return IntPtr.Zero;
-    }
-
-    // ── Win32 interop for per-monitor work area ───────────────────
-
-    [DllImport("user32.dll")]
-    private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint dwFlags);
-
-    [DllImport("user32.dll", CharSet = CharSet.Auto)]
-    private static extern bool GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct POINT { public int x, y; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct RECT { public int Left, Top, Right, Bottom; }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MINMAXINFO
-    {
-        public POINT ptReserved, ptMaxSize, ptMaxPosition, ptMinTrackSize, ptMaxTrackSize;
-    }
-
-    [StructLayout(LayoutKind.Sequential)]
-    private struct MONITORINFO
-    {
-        public int cbSize;
-        public RECT rcMonitor;
-        public RECT rcWork;
-        public uint dwFlags;
     }
 
     // ── Helpers ────────────────────────────────────────────────────
 
-    private FolderItem? FindFirstSelected()
-    {
-        if (_tabs.ActiveTab == null) return null;
-        foreach (var item in _tabs.ActiveTab.Folders)
-            if (item.IsSelected) return item;
-        return null;
-    }
 }

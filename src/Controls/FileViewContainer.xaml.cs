@@ -1,7 +1,4 @@
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
@@ -114,6 +111,9 @@ public partial class FileViewContainer : UserControl, IFileView
     {
         base.OnPropertyChanged(e);
         ForwardStateToContent();
+
+        if (e.Property == FoldersProperty)
+            _typeAhead.Reset();
     }
 
     // ── Selection state ──────────────────────────────────────────
@@ -126,12 +126,17 @@ public partial class FileViewContainer : UserControl, IFileView
     private bool _isRubberBanding;
     private Point _rubberBandStart;
 
+    // ── Type-ahead navigation state ──────────────────────────────
+
+    private readonly TypeAheadBuffer _typeAhead = new();
+
     // ── Constructor ──────────────────────────────────────────────
 
     public FileViewContainer()
     {
         InitializeComponent();
         PreviewMouseDown += FileViewContainer_PreviewMouseDown;
+        PreviewTextInput += FileViewContainer_PreviewTextInput;
     }
 
     private void FileViewContainer_PreviewMouseDown(object sender, MouseButtonEventArgs e)
@@ -155,6 +160,74 @@ public partial class FileViewContainer : UserControl, IFileView
         return VisualTreeUtility.GetFolderItemAtPoint(ActiveItemsControl, e.GetPosition(ActiveItemsControl));
     }
 
+    // ── Type-ahead navigation ────────────────────────────────────
+
+    /// <summary>
+    /// Accumulates typed characters and jumps the selection to the first item
+    /// whose name starts with the current buffer prefix (case-insensitive).
+    /// </summary>
+    private void FileViewContainer_PreviewTextInput(object sender, TextCompositionEventArgs e)
+    {
+        // Ignore typing while a rename is active — let the TextBox own the keystrokes.
+        if (IsAnyItemEditing()) return;
+
+        foreach (char c in e.Text)
+            _typeAhead.Append(c);
+
+        if (_typeAhead.Prefix.Length == 0) return;
+
+        if (TryFindItemByPrefix(_typeAhead.Prefix, out var match))
+        {
+            SelectSingle(match);
+            ScrollItemIntoView(match);
+            e.Handled = true;
+        }
+    }
+
+    private bool IsAnyItemEditing()
+    {
+        if (Folders is not IEnumerable<FolderItem> items) return false;
+        foreach (var item in items)
+            if (item.IsEditing) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// Finds the first item whose name begins with <paramref name="prefix"/>
+    /// (case-insensitive, ordinal). Returns false when nothing matches.
+    /// </summary>
+    private bool TryFindItemByPrefix(string prefix, out FolderItem match)
+    {
+        if (Folders is IEnumerable<FolderItem> items)
+        {
+            foreach (var item in items)
+            {
+                if (item.Name.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+                {
+                    match = item;
+                    return true;
+                }
+            }
+        }
+
+        match = null!;
+        return false;
+    }
+
+    /// <summary>Selects exactly one item, clearing every other selection.</summary>
+    private void SelectSingle(FolderItem item)
+    {
+        ClearAllSelections();
+        item.IsSelected = true;
+    }
+
+    /// <summary>Brings the item's container into view by scrolling if needed.</summary>
+    private void ScrollItemIntoView(FolderItem item)
+    {
+        if (ActiveItemsControl?.ItemContainerGenerator.ContainerFromItem(item) is FrameworkElement container)
+            container.BringIntoView();
+    }
+
     // ── Item click handling ──────────────────────────────────────
 
     private void HandleItemClick(FolderItem clickedItem, bool isNameClick, ModifierKeys modifiers)
@@ -163,24 +236,21 @@ public partial class FileViewContainer : UserControl, IFileView
 
         if (modifiers.HasFlag(ModifierKeys.Shift) && _anchorItem != null)
         {
-            // Range select from anchor to clicked item — no click timing
             SelectRange(clickedItem);
         }
         else if (modifiers.HasFlag(ModifierKeys.Control))
         {
-            // Toggle selection — no click timing
             clickedItem.IsSelected = !clickedItem.IsSelected;
         }
         else
         {
-            // Plain click — let InteractionService handle selection + click timing
+            bool allowRename = !(Folders is IEnumerable<FolderItem> items && items.Count(i => i.IsSelected) > 1);
             InteractionService.HandleItemMouseDown(clickedItem, isNameClick, folders =>
             {
                 ClearAllSelections();
-            });
+            }, allowRename);
         }
 
-        // Anchor is updated on all non-Shift clicks
         if (!modifiers.HasFlag(ModifierKeys.Shift))
             _anchorItem = clickedItem;
     }
@@ -234,7 +304,6 @@ public partial class FileViewContainer : UserControl, IFileView
             Focus();
             CommitAnyRename();
 
-            // Handle item click for selection + click timing (rename/open)
             bool isNameClick = e.OriginalSource is TextBlock;
             HandleItemClick(hitItem, isNameClick, Keyboard.Modifiers);
             DragDropService?.ArmDrag(e.GetPosition(null));
@@ -245,7 +314,6 @@ public partial class FileViewContainer : UserControl, IFileView
         Focus();
         CommitAnyRename();
 
-        // Rubber band — Ctrl held means additive (preserve existing selection)
         bool ctrlHeld = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         if (!ctrlHeld)
             ClearAllSelections();
@@ -353,7 +421,6 @@ public partial class FileViewContainer : UserControl, IFileView
         if (InteractionService == null) return;
 
         InteractionService.CommitPendingRename(
-            clearAllSelections: folders => ClearAllSelections(),
             onCommitted: item =>
             {
                 var textBox = FindRenameBox(item);
@@ -405,7 +472,7 @@ public partial class FileViewContainer : UserControl, IFileView
     private void SnapshotRubberBandSelection(bool ctrlHeld)
     {
         if (ctrlHeld && Folders is IEnumerable<FolderItem> items)
-            _preRubberBandSnapshot = new HashSet<FolderItem>(items.Where(i => i.IsSelected));
+            _preRubberBandSnapshot = items.Where(i => i.IsSelected).ToHashSet();
         else
             _preRubberBandSnapshot = null;
     }

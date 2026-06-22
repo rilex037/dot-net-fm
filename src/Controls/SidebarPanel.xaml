@@ -48,26 +48,41 @@
                   VerticalScrollBarVisibility="Hidden"
                   BorderThickness="0,0,1,0"
                   BorderBrush="{StaticResource SeparatorBrush}">
-        <StackPanel Margin="{StaticResource SpacingOuterMargin}">
+        <StackPanel Margin="{StaticResource SpacingSidebarTopMargin}">
             <ItemsControl ItemsSource="{Binding Sections, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="local:SidebarSectionView">
                         <StackPanel Margin="{StaticResource SpacingChildSectionMargin}">
 
-                            <!-- Section header (bold) -->
+                            <!-- Section header (bold) — clickable to toggle collapse -->
                             <Grid Height="{StaticResource SizeSectionHeaderHeight}"
-                                  Margin="{StaticResource SpacingHeaderMargin}">
+                                  Margin="{StaticResource SpacingSidebarSectionHeaderMargin}"
+                                  Cursor="Hand"
+                                  MouseDown="OnSectionHeaderMouseDown">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
+
+                                <!-- Collapse/expand icon: ▾ when expanded, ▸ when collapsed -->
                                 <TextBlock Grid.Column="0"
-                                           Text="&#x25BE;"
                                            FontFamily="{StaticResource AppFontBold}"
                                            FontSize="{StaticResource FontSectionHeaderSize}"
                                            Foreground="{StaticResource SectionHeaderBrush}"
                                            VerticalAlignment="Center"
-                                           Margin="0,0,4,0"/>
+                                           Margin="0,0,4,0">
+                                    <TextBlock.Style>
+                                        <Style TargetType="TextBlock">
+                                            <Setter Property="Text" Value="&#x25BE;"/>
+                                            <Style.Triggers>
+                                                <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
+                                                    <Setter Property="Text" Value="&#x25B8;"/>
+                                                </DataTrigger>
+                                            </Style.Triggers>
+                                        </Style>
+                                    </TextBlock.Style>
+                                </TextBlock>
+
                                 <TextBlock Grid.Column="1"
                                            Text="{Binding Title}"
                                            FontFamily="{StaticResource AppFontBold}"
@@ -77,9 +92,20 @@
                                            VerticalAlignment="Center"/>
                             </Grid>
 
-                            <!-- Sidebar items (normal) -->
+                            <!-- Sidebar items (normal) — visibility bound to IsCollapsed -->
                             <ItemsControl ItemsSource="{Binding Items}"
-                                          ItemTemplate="{StaticResource SidebarItemTemplate}"/>
+                                          ItemTemplate="{StaticResource SidebarItemTemplate}">
+                                <ItemsControl.Style>
+                                    <Style TargetType="ItemsControl">
+                                        <Setter Property="Visibility" Value="Visible"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsCollapsed}" Value="True">
+                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ItemsControl.Style>
+                            </ItemsControl>
                         </StackPanel>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>

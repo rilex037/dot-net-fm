@@ -1,4 +1,3 @@
-using System.IO;
 using System.Windows.Controls;
 using System.Windows.Input;
 
@@ -34,8 +33,7 @@ public sealed class SidebarEventHandler
         string targetPath = item.Path;
         if (string.IsNullOrEmpty(targetPath)) return;
 
-        bool exists = _fileProvider?.IsVirtualRoot(targetPath) == true || Directory.Exists(targetPath);
-        if (!exists) return;
+        if (_fileProvider?.PathExists(targetPath) != true) return;
 
         switch (e.ChangedButton)
         {

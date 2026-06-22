@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Threading.Tasks;
 using System.Windows;
 
 namespace DotNetFM;
@@ -41,9 +37,7 @@ public class NavigationService
     public bool NavigateTo(string targetPath, bool pushToHistory = true)
     {
         if (string.IsNullOrEmpty(targetPath)) return false;
-
-        bool isVirtualRoot = _fileProvider.IsVirtualRoot(targetPath);
-        if (!isVirtualRoot && !Directory.Exists(targetPath)) return false;
+        if (!_fileProvider.PathExists(targetPath)) return false;
 
         if (pushToHistory && !string.IsNullOrEmpty(_currentPath))
         {
@@ -129,6 +123,4 @@ public class NavigationService
     public bool CanGoBack    => _backStack.Count > 0;
     public bool CanGoForward => _forwardStack.Count > 0;
     public bool CanGoUp      => !_fileProvider.IsVirtualRoot(_currentPath) && _fileProvider.GetParentPath(_currentPath) != null;
-
-    public void RefreshNavState() => NavStateChanged?.Invoke();
 }

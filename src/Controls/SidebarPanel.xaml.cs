@@ -1,6 +1,7 @@
 using System.Collections.ObjectModel;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
 
 namespace DotNetFM;
 
@@ -51,5 +52,17 @@ public partial class SidebarPanel : UserControl
         _handler = new SidebarEventHandler(itemsControl, FileProvider);
         _handler.NavigateRequested += path => NavigateRequested?.Invoke(path);
         _handler.OpenInNewTabRequested += path => OpenInNewTabRequested?.Invoke(path);
+    }
+
+    /// <summary>
+    /// Toggles the collapsed state of the section whose header was clicked.
+    /// </summary>
+    private void OnSectionHeaderMouseDown(object sender, MouseButtonEventArgs e)
+    {
+        if (sender is DependencyObject d)
+        {
+            var section = VisualTreeUtility.FindDataContext<SidebarSectionView>(d);
+            section?.ToggleCollapsed();
+        }
     }
 }
