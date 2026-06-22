@@ -1,33 +1,12 @@
 <#
-.SYNOPSIS
-Packs or unpacks source files into/from a 7z archive, preserving relative folder structure.
-
-.PARAMETER Command
-Mandatory. "pack" or "unpack".
-
-.PARAMETER ArchiveName
-Archive file name. Default "source.7z" in the project root.
-
-.PARAMETER Extensions
-File extensions to include when packing. Default @(".cs").
-
-.PARAMETER MaxRetries
-Number of retry attempts on failure. Default 3.
-
-.PARAMETER RetryDelayMs
-Delay between retries in milliseconds. Default 500.
-
 .EXAMPLE
 .\pack-source.ps1 pack
-Packs all *.cs files into source.7z.
-
-.EXAMPLE
-.\pack-source.ps1 pack -ArchiveName "myarchive.7z" -Extensions @(".cs",".xaml")
-Packs *.cs and *.xaml files into myarchive.7z.
+.\pack-source.ps1 pack -Extensions @(".cs",".xaml")
+.\pack-source.ps1 pack -ArchiveName "backup.7z" -Extensions ".cs",".xaml",".xml"
 
 .EXAMPLE
 .\pack-source.ps1 unpack
-Extracts source.7z into the project root, overwriting without prompting.
+.\pack-source.ps1 unpack -ArchiveName "backup.7z"
 #>
 
 [CmdletBinding()]
@@ -54,12 +33,10 @@ param(
 
 $ErrorActionPreference = "Stop"
 
-# ── Resolve project root (where .gitignore lives) ──────────────────────────
 $scriptDir = Split-Path -Parent $PSCommandPath
-$projectRoot = Split-Path -Parent $scriptDir  # project root = parent of scripts/
+$projectRoot = Split-Path -Parent $scriptDir
 $archivePath = Join-Path $projectRoot $ArchiveName
 
-# ── Helper: retry wrapper ─────────────────────────────────────────────────
 function Invoke-WithRetry {
     param(
         [scriptblock]$ScriptBlock,
@@ -69,7 +46,7 @@ function Invoke-WithRetry {
     for ($attempt = 1; $attempt -le $MaxRetries; $attempt++) {
         try {
             & $ScriptBlock
-            return  # success → exit function
+            return
         } catch {
             $ex = $_.Exception
             if ($attempt -lt $MaxRetries) {
@@ -77,18 +54,16 @@ function Invoke-WithRetry {
                 Start-Sleep -Milliseconds $RetryDelayMs
             } else {
                 Write-Error "$Label – all $MaxRetries attempts failed: $($ex.Message)"
-                throw  # terminating error
+                throw
             }
         }
     }
 }
 
-# ── Pack ──────────────────────────────────────────────────────────────────
 function Pack-Archive {
     Write-Host "Packing source files into '$archivePath'..."
     Write-Host "Extensions: $($Extensions -join ', ')"
 
-    # Collect matching files (relative paths)
     $fileList = @()
     $rootNorm = $projectRoot.TrimEnd('\') + '\'
     foreach ($ext in $Extensions) {
@@ -105,7 +80,6 @@ function Pack-Archive {
 
     Write-Host "Found $($fileList.Count) source file(s)."
 
-    # Write temp file list for 7z (handles large number of files safely)
     $tempList = [System.IO.Path]::GetTempFileName()
     try {
         $fileList | Set-Content -Path $tempList -Encoding UTF8
@@ -132,7 +106,6 @@ function Pack-Archive {
     Write-Host "Packed successfully: $archivePath"
 }
 
-# ── Unpack ────────────────────────────────────────────────────────────────
 function Unpack-Archive {
     if (-not (Test-Path $archivePath)) {
         Write-Error "Archive not found: $archivePath"
@@ -160,7 +133,6 @@ function Unpack-Archive {
     Write-Host "Unpacked successfully."
 }
 
-# ── Main ──────────────────────────────────────────────────────────────────
 try {
     switch ($Command) {
         "pack"   { Pack-Archive }
