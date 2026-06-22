@@ -25,15 +25,27 @@
     </ProjectReference>
   </ItemGroup>
 
-  <!-- After building, copy the module DLL directly into the app's output folder.
+  <!-- After building, copy the module DLL directly into the app's output folders.
+       Supports both normal build and R2R publish (win-x64\publish\).
        No separate app rebuild needed — build the module and it's deployed. -->
   <Target Name="DeployToApp" AfterTargets="Build">
+    <!-- Normal build output -->
     <PropertyGroup>
       <AppOutput>$(MSBuildProjectDirectory)\..\..\..\bin\$(Configuration)\net8.0-windows\</AppOutput>
     </PropertyGroup>
     <MakeDir Directories="$(AppOutput)" />
     <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll"
           DestinationFolder="$(AppOutput)"
+          SkipUnchangedFiles="true"
+          ContinueOnError="true" />
+
+    <!-- R2R publish output (may not exist on first build — ContinueOnError handles that) -->
+    <PropertyGroup>
+      <AppPublishOutput>$(MSBuildProjectDirectory)\..\..\..\bin\$(Configuration)\net8.0-windows\win-x64\publish\</AppPublishOutput>
+    </PropertyGroup>
+    <MakeDir Directories="$(AppPublishOutput)" />
+    <Copy SourceFiles="$(OutputPath)$(AssemblyName).dll"
+          DestinationFolder="$(AppPublishOutput)"
           SkipUnchangedFiles="true"
           ContinueOnError="true" />
   </Target>

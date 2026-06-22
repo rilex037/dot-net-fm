@@ -1,4 +1,5 @@
 using System.IO;
+using System.Runtime.InteropServices;
 
 namespace DotNetFM;
 
@@ -33,6 +34,9 @@ internal static class ShellPathHelper
 /// </summary>
 public sealed class WindowsFileProvider : IFileProvider
 {
+    [DllImport("shlwapi.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = false)]
+    private static extern int StrCmpLogicalW(string psz1, string psz2);
+
     /// <summary>Special path representing "My Computer" view.</summary>
     public const string MyComputerPath = ShellPathHelper.MyComputerPath;
 
@@ -110,8 +114,9 @@ public sealed class WindowsFileProvider : IFileProvider
                     catch { }
                 }
 
-                // Sort: folders first, then by extension (files), then by name
-                items.Sort((a, b) =>
+                items.Sort(NaturalSort);
+
+                static int NaturalSort(FolderItem a, FolderItem b)
                 {
                     int folderCmp = -a.IsFolder.CompareTo(b.IsFolder);
                     if (folderCmp != 0) return folderCmp;
@@ -120,12 +125,12 @@ public sealed class WindowsFileProvider : IFileProvider
                     {
                         string extA = Path.GetExtension(a.Name);
                         string extB = Path.GetExtension(b.Name);
-                        int extCmp = string.Compare(extA, extB, StringComparison.OrdinalIgnoreCase);
+                        int extCmp = StrCmpLogicalW(extA, extB);
                         if (extCmp != 0) return extCmp;
                     }
 
-                    return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
-                });
+                    return StrCmpLogicalW(a.Name, b.Name);
+                }
             }
             catch (OperationCanceledException) { throw; }
             catch { }
