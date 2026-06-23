@@ -15,10 +15,24 @@ public partial class StatusLayout : UserControl
 
     private bool _suppressZoomChanged;
 
+    /// <summary>Whether the sidebar is currently collapsed (toggles the icon).</summary>
+    private bool _isSidebarCollapsed;
+
+    private const string CollapseLeftIcon = "sidebar-collapse-left.svg";
+    private const string CollapseRightIcon = "sidebar-collapse-right.svg";
+
     public StatusLayout()
     {
         InitializeComponent();
         ZoomSlider.PreviewMouseLeftButtonDown += ZoomSlider_MouseLeftButtonDown;
+        SidebarToggleIcon.UriSource = new Uri(IconProvider.GetFullPath(CollapseLeftIcon));
+    }
+
+    private void SidebarToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isSidebarCollapsed = !_isSidebarCollapsed;
+        string icon = _isSidebarCollapsed ? CollapseRightIcon : CollapseLeftIcon;
+        SidebarToggleIcon.UriSource = new Uri(IconProvider.GetFullPath(icon));
     }
 
     /// <summary>

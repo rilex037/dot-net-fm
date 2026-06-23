@@ -315,6 +315,8 @@ public partial class MainWindow : Window
         };
 
         _activeView.OpenInNewTabRequested += path => _tabs.AddTab(path);
+
+        _activeView.DropOnFileRequested += _interaction.HandleDropOnFile;
     }
 
     // ── Sidebar and Navigation toolbar ─────────────────────────────

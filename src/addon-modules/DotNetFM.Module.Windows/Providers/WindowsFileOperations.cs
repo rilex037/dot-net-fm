@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using Microsoft.VisualBasic.FileIO;
 
 namespace DotNetFM;
@@ -9,6 +11,11 @@ namespace DotNetFM;
 /// </summary>
 public sealed class WindowsFileOperations : IFileOperations
 {
+    // SHGFI_EXETYPE flag for SHGetFileInfo — returns non-zero handle only for PE executables.
+    private const uint SHGFI_EXETYPE = 0x2000;
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, IntPtr psfi, uint cbFileInfo, uint uFlags);
     public IFileOperations.OperationResult Rename(FolderItem item, string newName)
     {
         if (string.IsNullOrWhiteSpace(newName))
@@ -209,6 +216,31 @@ public sealed class WindowsFileOperations : IFileOperations
         }
 
         return fullyMerged;
+    }
+
+    public IFileOperations.OperationResult ExecuteFileWithArguments(string targetPath, IReadOnlyList<string> droppedFiles)
+    {
+        try
+        {
+            if (SHGetFileInfo(targetPath, 0, IntPtr.Zero, 0, SHGFI_EXETYPE) == IntPtr.Zero)
+                return new IFileOperations.OperationResult(true);
+
+            string args = string.Join(" ", droppedFiles.Select(f => $"\"{f}\""));
+            var startInfo = new ProcessStartInfo(targetPath)
+            {
+                UseShellExecute = true,
+                Arguments = args,
+                WorkingDirectory = Path.GetDirectoryName(Path.GetFullPath(targetPath))
+            };
+
+            Process.Start(startInfo);
+            return new IFileOperations.OperationResult(true);
+        }
+        catch (Exception ex)
+        {
+            return new IFileOperations.OperationResult(false,
+                $"Could not execute '{Path.GetFileName(targetPath)}' with dropped files: {ex.Message}");
+        }
     }
 
     private static string GetUniquePath(string dir, string name)

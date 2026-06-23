@@ -526,6 +526,12 @@ public partial class FileViewContainer : UserControl, IFileView
 
     public event Action<string>? OpenInNewTabRequested;
 
+    /// <summary>
+    /// Raised when files are dropped onto a file (not a folder).
+    /// Parameters: target file path, dropped file paths.
+    /// </summary>
+    public event Action<string, List<string>>? DropOnFileRequested;
+
     // ── Mouse wheel / zoom ───────────────────────────────────────
 
     public event Action<MouseWheelEventArgs>? MouseWheelPreview;
@@ -541,10 +547,22 @@ public partial class FileViewContainer : UserControl, IFileView
     {
         if (DragDropService == null || InteractionService == null) return;
 
+        if (e.Data.GetData(DataFormats.FileDrop) is not string[] droppedPaths || droppedPaths.Length == 0)
+            return;
+
         var pos = e.GetPosition(ActiveItemsControl!);
         var hitItem = VisualTreeUtility.GetFolderItemAtPoint(ActiveItemsControl!, pos);
-        string targetDir = (hitItem != null && hitItem.IsFolder) ? hitItem.FullPath : CurrentPath;
 
+        if (hitItem is { IsFolder: false })
+        {
+            // Drop onto a file — execute the target file with dropped files as arguments.
+            DropOnFileRequested?.Invoke(hitItem.FullPath, [.. droppedPaths]);
+            e.Handled = true;
+            return;
+        }
+
+        // Drop onto a folder or empty space — delegate to drag-drop for transfer.
+        string targetDir = hitItem != null ? hitItem.FullPath : CurrentPath;
         DragDropService.HandleDrop(e, targetDir);
     }
 }

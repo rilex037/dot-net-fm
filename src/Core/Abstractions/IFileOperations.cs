@@ -38,4 +38,12 @@ public interface IFileOperations
     IReadOnlyList<OperationResult> TransferFiles(
         IReadOnlyList<string> sources, string targetDir, bool forceCopy,
         ConflictPolicy conflictPolicy = ConflictPolicy.Overwrite);
+
+    /// <summary>
+    /// Executes the file at <paramref name="targetPath"/> with the dropped files as arguments.
+    /// For executables this launches the process; for non-executables the shell handles it
+    /// (which may or may not support arguments). Returns <c>false</c> if the operation is
+    /// unsupported by the module.
+    /// </summary>
+    OperationResult ExecuteFileWithArguments(string targetPath, IReadOnlyList<string> droppedFiles);
 }
