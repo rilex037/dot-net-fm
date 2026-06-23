@@ -162,7 +162,7 @@ public partial class MainWindow : Window
 
     private void InitializeSidebar(string initialPath)
     {
-        SidebarIconMapper.Initialize(SidebarService.Load().SidebarIcons);
+        IconProvider.Initialize(SidebarService.Load().SidebarIcons);
 
         // Use module-contributed sidebar sections — no hardcoded section names
         var module = App.Modules.FindByPath(initialPath);
@@ -193,7 +193,7 @@ public partial class MainWindow : Window
                     view.Items.Add(new SidebarItem.Item
                     {
                         Name = displayName,
-                        IconPath = SidebarIconMapper.GetIconPath(entry.Icon),
+                        IconPath = IconProvider.GetIconPath(entry.Icon),
                         Path = resolvedPath,
                     });
                 }

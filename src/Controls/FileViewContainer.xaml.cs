@@ -126,6 +126,12 @@ public partial class FileViewContainer : UserControl, IFileView
     private bool _isRubberBanding;
     private Point _rubberBandStart;
 
+    // ── Deferred click on already-selected items ─────────────────
+    // Click is deferred to mouse-up so we can differentiate click vs drag.
+    private FolderItem? _pendingSelectedClick;
+    private bool _pendingIsNameClick;
+    private Point _pendingClickDownPoint;
+
     // ── Type-ahead navigation state ──────────────────────────────
 
     private readonly TypeAheadBuffer _typeAhead = new();
@@ -305,7 +311,18 @@ public partial class FileViewContainer : UserControl, IFileView
             CommitAnyRename();
 
             bool isNameClick = e.OriginalSource is TextBlock;
-            HandleItemClick(hitItem, isNameClick, Keyboard.Modifiers);
+            if (hitItem.IsSelected)
+            {
+                // Defer click action to mouse-up to differentiate click vs drag
+                _pendingSelectedClick = hitItem;
+                _pendingIsNameClick = isNameClick;
+                _pendingClickDownPoint = e.GetPosition(null);
+            }
+            else
+            {
+                HandleItemClick(hitItem, isNameClick, Keyboard.Modifiers);
+            }
+
             DragDropService?.ArmDrag(e.GetPosition(null));
             e.Handled = true;
             return;
@@ -331,7 +348,11 @@ public partial class FileViewContainer : UserControl, IFileView
         if (InteractionService == null) return;
 
         if (Folders is IEnumerable<FolderItem> typedFolders)
-            DragDropService?.UpdateDrag(this, typedFolders);
+        {
+            bool dragStarted = DragDropService?.UpdateDrag(this, typedFolders) ?? false;
+            if (dragStarted)
+                _pendingSelectedClick = null;
+        }
 
         if (Mouse.Captured != SelectionCanvas) return;
 
@@ -372,6 +393,14 @@ public partial class FileViewContainer : UserControl, IFileView
 
     private void FileView_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        // Process deferred click on already-selected item (was click, not drag)
+        if (_pendingSelectedClick != null)
+        {
+            var clicked = _pendingSelectedClick;
+            _pendingSelectedClick = null;
+            HandleItemClick(clicked, _pendingIsNameClick, Keyboard.Modifiers);
+        }
+
         if (Mouse.Captured != SelectionCanvas) return;
 
         SelectionCanvas.ReleaseMouseCapture();
