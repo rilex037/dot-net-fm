@@ -24,10 +24,9 @@ public partial class MenuBar : UserControl
         var version = Assembly.GetExecutingAssembly().GetName().Version;
         var versionText = version?.ToString(3) ?? "0.0.1";
 
-        MessageBox.Show(
-            $"DotNetFM File Manager\nVersion {versionText}-alpha\n\nA lightweight file manager built with WPF.",
+        CustomDialog.Show(
             "About DotNetFM",
-            MessageBoxButton.OK,
-            MessageBoxImage.Information);
+            $"DotNetFM File Manager\nVersion {versionText}-alpha\n\nA lightweight file manager built with WPF.",
+            DialogIcon.Info);
     }
 }
