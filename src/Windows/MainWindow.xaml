@@ -61,9 +61,9 @@
         <Grid.RowDefinitions>
             <RowDefinition Height="30"/>
             <RowDefinition Height="26"/>
-            <RowDefinition Height="36"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
-            <RowDefinition Height="24"/>
+            <RowDefinition Height="32"/>
         </Grid.RowDefinitions>
 
         <!-- ROW 0: Title Bar (Caption area) -->
@@ -121,13 +121,6 @@
                 <local:FileViewContainer Grid.Row="1" x:Name="FileContainer"/>
             </Grid>
         </Grid>
-
-        <!-- Alert overlay: placed in root Grid above all rows to guarantee top z-order -->
-        <local:AlertBar x:Name="AlertOverlay"
-                        Grid.Row="3"
-                        HorizontalAlignment="Center" VerticalAlignment="Center"
-                        Margin="0,0,0,40" Visibility="Collapsed"
-                        IsHitTestVisible="True"/>
 
         <!-- ROW 4: Status Bar -->
         <local:StatusLayout x:Name="StatusBar" Grid.Row="4"/>

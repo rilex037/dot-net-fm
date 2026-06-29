@@ -70,7 +70,7 @@
     "ScrollBarWidth": 8,
     "TabTitleMinWidth": 40,
     "TabTitleMaxWidth": 150,
-    "TabCloseButtonSize": 16,
+    "TabCloseButtonSize": 12,
     "TabItemHeight": 30,
     "SidebarItemHeight": 26,
     "SectionHeaderHeight": 24
@@ -90,7 +90,6 @@
     "TitleWeight": "SemiBold",
     "StatusSize": 11,
     "AddressSize": 12,
-    "TabTitleSize": 12,
-    "TabCloseSize": 10
+    "TabTitleSize": 12
   }
 }

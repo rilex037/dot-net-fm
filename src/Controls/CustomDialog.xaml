@@ -1,0 +1,77 @@
+<Window x:Class="DotNetFM.CustomDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:svg="clr-namespace:SharpVectors.Converters;assembly=SharpVectors.Converters.Wpf"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterOwner"
+        Background="{StaticResource ToolbarBrush}"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        FontFamily="{StaticResource AppFont}"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        ShowInTaskbar="False"
+        Topmost="False">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome GlassFrameThickness="0" CornerRadius="{StaticResource CornerRadiusLarge}" ResizeBorderThickness="0"/>
+    </WindowChrome.WindowChrome>
+
+    <Border Background="{StaticResource ToolbarBrush}"
+            CornerRadius="{StaticResource CornerRadiusLarge}"
+            BorderBrush="{StaticResource SeparatorBrush}"
+            BorderThickness="1"
+            Padding="28">
+        <Grid MinWidth="320" MaxWidth="480">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <!-- Icon + Title row -->
+            <Grid Grid.Row="0" Margin="0,0,0,16">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Dialog icon -->
+                <Grid Grid.Column="0" x:Name="IconContainer"
+                      Width="48" Height="48" Margin="0,0,16,0"
+                      Visibility="Collapsed">
+                    <svg:SvgViewbox x:Name="IconImage"
+                                    UriSource="{Binding}"
+                                    Stretch="Uniform"
+                                    Width="48" Height="48"/>
+                </Grid>
+
+                <!-- Title -->
+                <TextBlock Grid.Column="1" x:Name="TitleText"
+                           FontSize="{StaticResource FontFileNameSize}"
+                           FontWeight="Bold"
+                           Foreground="{StaticResource TextPrimaryBrush}"
+                           TextWrapping="Wrap"
+                           VerticalAlignment="Center"/>
+            </Grid>
+
+            <!-- Message -->
+            <TextBlock Grid.Row="1" x:Name="MessageText"
+                       FontSize="{StaticResource FontStatusSize}"
+                       Foreground="{StaticResource TextSecondaryBrush}"
+                       TextWrapping="Wrap"
+                       Margin="0,0,0,24"/>
+
+            <!-- Buttons -->
+            <StackPanel Grid.Row="2"
+                        x:Name="ButtonPanel"
+                        Orientation="Horizontal"
+                        HorizontalAlignment="Right">
+                <!-- OK / Yes / No / Cancel buttons are created programmatically -->
+            </StackPanel>
+        </Grid>
+    </Border>
+</Window>

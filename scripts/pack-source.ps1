@@ -3,6 +3,8 @@
 .\pack-source.ps1 pack
 .\pack-source.ps1 pack -Extensions @(".cs",".xaml")
 .\pack-source.ps1 pack -ArchiveName "backup.7z" -Extensions ".cs",".xaml",".xml"
+.\pack-source.ps1 pack -SourcePath "src" -Extensions @(".kt",".xml")
+.\pack-source.ps1 pack -SourcePath "src" -ArchiveName "src-only.7z" -Extensions ".kt",".xml"
 
 .EXAMPLE
 .\pack-source.ps1 unpack
@@ -28,7 +30,10 @@ param(
     [int]$RetryDelayMs = 500,
 
     [Parameter(Mandatory=$false)]
-    [string]$SevenZipPath = "C:\Program Files\7-Zip\7z.exe"
+    [string]$SevenZipPath = "C:\Program Files\7-Zip\7z.exe",
+
+    [Parameter(Mandatory=$false)]
+    [string]$SourcePath = "."
 )
 
 $ErrorActionPreference = "Stop"
@@ -61,13 +66,25 @@ function Invoke-WithRetry {
 }
 
 function Pack-Archive {
+    $sourceDir = if ($SourcePath -eq "." -or $SourcePath -eq "") {
+        $projectRoot
+    } else {
+        Join-Path $projectRoot $SourcePath
+    }
+
+    if (-not (Test-Path $sourceDir)) {
+        Write-Error "Source path not found: $sourceDir"
+        throw "Source path not found: $sourceDir"
+    }
+
     Write-Host "Packing source files into '$archivePath'..."
+    Write-Host "Source path: $sourceDir"
     Write-Host "Extensions: $($Extensions -join ', ')"
 
     $fileList = @()
     $rootNorm = $projectRoot.TrimEnd('\') + '\'
     foreach ($ext in $Extensions) {
-        $matches = Get-ChildItem -Path $projectRoot -Recurse -File -Filter "*$ext" |
+        $matches = Get-ChildItem -Path $sourceDir -Recurse -File -Filter "*$ext" |
                    Where-Object { $_.FullName -notmatch '\\(bin|obj|\.git|\.vs|node_modules)\\' } |
                    ForEach-Object { $_.FullName.Replace($rootNorm, '') }
         $fileList += $matches

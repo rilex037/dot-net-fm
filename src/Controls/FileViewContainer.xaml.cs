@@ -126,6 +126,12 @@ public partial class FileViewContainer : UserControl, IFileView
     private bool _isRubberBanding;
     private Point _rubberBandStart;
 
+    // ── Deferred click on already-selected items ─────────────────
+    // Click is deferred to mouse-up so we can differentiate click vs drag.
+    private FolderItem? _pendingSelectedClick;
+    private bool _pendingIsNameClick;
+    private Point _pendingClickDownPoint;
+
     // ── Type-ahead navigation state ──────────────────────────────
 
     private readonly TypeAheadBuffer _typeAhead = new();
@@ -305,7 +311,18 @@ public partial class FileViewContainer : UserControl, IFileView
             CommitAnyRename();
 
             bool isNameClick = e.OriginalSource is TextBlock;
-            HandleItemClick(hitItem, isNameClick, Keyboard.Modifiers);
+            if (hitItem.IsSelected)
+            {
+                // Defer click action to mouse-up to differentiate click vs drag
+                _pendingSelectedClick = hitItem;
+                _pendingIsNameClick = isNameClick;
+                _pendingClickDownPoint = e.GetPosition(null);
+            }
+            else
+            {
+                HandleItemClick(hitItem, isNameClick, Keyboard.Modifiers);
+            }
+
             DragDropService?.ArmDrag(e.GetPosition(null));
             e.Handled = true;
             return;
@@ -331,7 +348,11 @@ public partial class FileViewContainer : UserControl, IFileView
         if (InteractionService == null) return;
 
         if (Folders is IEnumerable<FolderItem> typedFolders)
-            DragDropService?.UpdateDrag(this, typedFolders);
+        {
+            bool dragStarted = DragDropService?.UpdateDrag(this, typedFolders) ?? false;
+            if (dragStarted)
+                _pendingSelectedClick = null;
+        }
 
         if (Mouse.Captured != SelectionCanvas) return;
 
@@ -372,6 +393,14 @@ public partial class FileViewContainer : UserControl, IFileView
 
     private void FileView_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
+        // Process deferred click on already-selected item (was click, not drag)
+        if (_pendingSelectedClick != null)
+        {
+            var clicked = _pendingSelectedClick;
+            _pendingSelectedClick = null;
+            HandleItemClick(clicked, _pendingIsNameClick, Keyboard.Modifiers);
+        }
+
         if (Mouse.Captured != SelectionCanvas) return;
 
         SelectionCanvas.ReleaseMouseCapture();
@@ -497,6 +526,12 @@ public partial class FileViewContainer : UserControl, IFileView
 
     public event Action<string>? OpenInNewTabRequested;
 
+    /// <summary>
+    /// Raised when files are dropped onto a file (not a folder).
+    /// Parameters: target file path, dropped file paths.
+    /// </summary>
+    public event Action<string, List<string>>? DropOnFileRequested;
+
     // ── Mouse wheel / zoom ───────────────────────────────────────
 
     public event Action<MouseWheelEventArgs>? MouseWheelPreview;
@@ -512,10 +547,22 @@ public partial class FileViewContainer : UserControl, IFileView
     {
         if (DragDropService == null || InteractionService == null) return;
 
+        if (e.Data.GetData(DataFormats.FileDrop) is not string[] droppedPaths || droppedPaths.Length == 0)
+            return;
+
         var pos = e.GetPosition(ActiveItemsControl!);
         var hitItem = VisualTreeUtility.GetFolderItemAtPoint(ActiveItemsControl!, pos);
-        string targetDir = (hitItem != null && hitItem.IsFolder) ? hitItem.FullPath : CurrentPath;
 
+        if (hitItem is { IsFolder: false })
+        {
+            // Drop onto a file — execute the target file with dropped files as arguments.
+            DropOnFileRequested?.Invoke(hitItem.FullPath, [.. droppedPaths]);
+            e.Handled = true;
+            return;
+        }
+
+        // Drop onto a folder or empty space — delegate to drag-drop for transfer.
+        string targetDir = hitItem != null ? hitItem.FullPath : CurrentPath;
         DragDropService.HandleDrop(e, targetDir);
     }
 }

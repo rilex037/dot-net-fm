@@ -188,7 +188,7 @@ public sealed class WindowsFileProvider : IFileProvider
     /// If <paramref name="di"/> is a junction or symlink, returns the resolved
     /// target path. Otherwise returns <see cref="DirectoryInfo.FullName"/> unchanged.
     /// </summary>
-    private static string ResolveDirectoryTarget(DirectoryInfo di)
+    internal static string ResolveDirectoryTarget(DirectoryInfo di)
     {
         if (!di.Attributes.HasFlag(FileAttributes.ReparsePoint))
             return di.FullName;

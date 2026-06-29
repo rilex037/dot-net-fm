@@ -32,18 +32,34 @@ public sealed class WindowsDirectoryWatcher : IDirectoryWatcher
 
         try
         {
-            _watcher = new FileSystemWatcher(path)
+            string watchPath = WindowsFileProvider.ResolveDirectoryTarget(new DirectoryInfo(path));
+
+            var watcher = new FileSystemWatcher(watchPath)
             {
                 IncludeSubdirectories = false,
-                EnableRaisingEvents = true,
-                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName
+                NotifyFilter = NotifyFilters.FileName | NotifyFilters.DirectoryName,
+                InternalBufferSize = 65536
             };
 
-            _watcher.Created += OnChanged;
-            _watcher.Deleted += OnChanged;
-            _watcher.Renamed += OnRenamed;
+            watcher.Created += OnChanged;
+            watcher.Deleted += OnChanged;
+            watcher.Renamed += OnRenamed;
+            watcher.Error += OnWatcherError;
+            watcher.EnableRaisingEvents = true;
+            _watcher = watcher;
         }
         catch { }
+    }
+
+    private void OnWatcherError(object sender, ErrorEventArgs e)
+    {
+        if (_disposed) return;
+
+        _debounceTimer.Dispatcher.Invoke(() =>
+        {
+            if (_disposed) return;
+            DebounceNotify();
+        });
     }
 
     /// <summary>Stops watching and cancels pending debounce.</summary>

@@ -196,6 +196,24 @@ public sealed class FileInteractionService(
         RunTransfer(sources, targetDir, forceCopy);
     }
 
+    /// <summary>
+    /// Handles a drop onto a file: executes the target file with the dropped files
+    /// as command-line arguments. Resolves the module via <see cref="_resolveFileOperations"/>.
+    /// </summary>
+    public void HandleDropOnFile(string targetPath, List<string> droppedFiles)
+    {
+        var ops = _resolveFileOperations(targetPath);
+        if (ops == null)
+        {
+            ErrorDisplayRequested?.Invoke("No file operations available for this location.");
+            return;
+        }
+
+        var result = ops.ExecuteFileWithArguments(targetPath, droppedFiles);
+        if (!result.Success && result.ErrorMessage != null)
+            ErrorDisplayRequested?.Invoke(result.ErrorMessage);
+    }
+
     private void RunTransfer(IReadOnlyList<string> sources, string targetDir, bool forceCopy)
     {
         // The destination owns the write, so its module's IFileOperations does the transfer —

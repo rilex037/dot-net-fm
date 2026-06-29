@@ -162,7 +162,7 @@ public partial class MainWindow : Window
 
     private void InitializeSidebar(string initialPath)
     {
-        SidebarIconMapper.Initialize(SidebarService.Load().SidebarIcons);
+        SidebarIconProvider.Initialize(SidebarService.Load().SidebarIcons);
 
         // Use module-contributed sidebar sections — no hardcoded section names
         var module = App.Modules.FindByPath(initialPath);
@@ -193,7 +193,7 @@ public partial class MainWindow : Window
                     view.Items.Add(new SidebarItem.Item
                     {
                         Name = displayName,
-                        IconPath = SidebarIconMapper.GetIconPath(entry.Icon),
+                        IconPath = SidebarIconProvider.GetIconPath(entry.Icon),
                         Path = resolvedPath,
                     });
                 }
@@ -282,23 +282,23 @@ public partial class MainWindow : Window
 
         _interaction.ErrorDisplayRequested = message =>
         {
-            MessageBox.Show(message, "Error",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            CustomDialog.Show("Error", message, DialogIcon.Error);
         };
 
         _interaction.ConflictResolutionRequested = () =>
         {
-            var choice = MessageBox.Show(
-                "This location already contains items with the same name." +
-                "\n\nReplace the existing items?\n\nYes = replace, No = keep existing items and copy the rest, Cancel = do nothing.",
+            var choice = CustomDialog.Show(
                 "Confirm Replace",
-                MessageBoxButton.YesNoCancel,
-                MessageBoxImage.Question);
+                "This location already contains items with the same name.\n\n" +
+                "Replace the existing items?\n\n" +
+                "Yes = replace, No = keep existing items and copy the rest, Cancel = do nothing.",
+                DialogIcon.Confirmation,
+                DialogButtons.YesNoCancel);
 
             return choice switch
             {
-                MessageBoxResult.Yes => IFileOperations.ConflictPolicy.Overwrite,
-                MessageBoxResult.No => IFileOperations.ConflictPolicy.Skip,
+                CustomDialogResult.Yes => IFileOperations.ConflictPolicy.Overwrite,
+                CustomDialogResult.No => IFileOperations.ConflictPolicy.Skip,
                 _ => IFileOperations.ConflictPolicy.Cancel,
             };
         };
@@ -315,6 +315,8 @@ public partial class MainWindow : Window
         };
 
         _activeView.OpenInNewTabRequested += path => _tabs.AddTab(path);
+
+        _activeView.DropOnFileRequested += _interaction.HandleDropOnFile;
     }
 
     // ── Sidebar and Navigation toolbar ─────────────────────────────
@@ -364,9 +366,10 @@ public partial class MainWindow : Window
             if (_tabs.ActiveTab != null && _tabs.ActiveTab.State.ActivePath != target)
             {
                 NavToolbar.SetPath(_module.FileProvider.GetDisplayPath(previousPath));
-                AlertOverlay.ShowAlert(
-                    $"Could not find \u201c{path}\u201d.",
-                    "Please check the spelling and try again.");
+                CustomDialog.Show(
+                    "Navigation Error",
+                    $"Could not find \u201c{path}\u201d.\nPlease check the spelling and try again.",
+                    DialogIcon.Error);
             }
         };
     }

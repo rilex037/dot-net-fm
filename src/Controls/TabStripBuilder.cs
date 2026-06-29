@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using SharpVectors.Converters;
 
 namespace DotNetFM;
 
@@ -49,12 +50,12 @@ public sealed class TabStripBuilder
 
             double closeBtnSize = (double)Application.Current.FindResource("SizeTabCloseButtonSize");
 
+            var iconPath = IconProvider.GetFullPath("window-close.svg");
+
             var closeButton = new Button
             {
-                Content = "×",
                 Width = closeBtnSize,
                 Height = closeBtnSize,
-                FontSize = (double)Application.Current.FindResource("FontTabCloseSize"),
                 Background = Brushes.Transparent,
                 BorderThickness = new Thickness(0),
                 Foreground = (Brush)Application.Current.FindResource("TextSecondaryBrush"),
@@ -62,6 +63,12 @@ public sealed class TabStripBuilder
                 Focusable = false,
                 VerticalAlignment = VerticalAlignment.Center,
                 Tag = tabId,
+                Content = new SvgViewbox
+                {
+                    UriSource = new Uri(iconPath, UriKind.Absolute),
+                    Width = closeBtnSize * 0.5,
+                    Height = closeBtnSize * 0.5,
+                },
             };
 
             closeButton.Click += (_, _) => _tabs.CloseTab(tabId);
