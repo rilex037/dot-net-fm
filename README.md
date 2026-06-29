@@ -13,7 +13,7 @@
   <img src="https://img.shields.io/badge/C%23-12.0-239120?style=for-the-badge&logo=csharp&logoColor=white" alt="C#" />
   <img src="https://img.shields.io/badge/WPF-0A0A0A?style=for-the-badge&logo=windows&logoColor=white" alt="WPF" />
   <img src="https://img.shields.io/badge/Status-Alpha-orange?style=for-the-badge" alt="Status: Alpha" />
-  <img src="https://img.shields.io/badge/Version-0.0.4--alpha-blue?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.0.5--alpha-blue?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" />
 </p>
 
