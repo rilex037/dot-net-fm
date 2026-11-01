@@ -2,25 +2,29 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:svg="clr-namespace:SharpVectors.Converters;assembly=SharpVectors.Converters.Wpf"
-             xmlns:local="clr-namespace:DotNetFM">
+             xmlns:local="clr-namespace:DotNetFM"
+             AllowDrop="True"
+             DragOver="OnDragOver"
+             Drop="OnDrop">
 
     <UserControl.Resources>
 
-        <!-- Sidebar item hover style -->
         <Style x:Key="SidebarItemStyle" TargetType="Border">
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Cursor" Value="Hand"/>
             <Style.Triggers>
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter Property="Background" Value="{StaticResource HoverSidebarBrush}"/>
                 </Trigger>
+                <DataTrigger Binding="{Binding IsHint}" Value="True">
+                    <Setter Property="Cursor" Value="Arrow"/>
+                </DataTrigger>
             </Style.Triggers>
         </Style>
 
-        <!-- Sidebar item template -->
         <DataTemplate x:Key="SidebarItemTemplate" DataType="local:SidebarItem+Item">
             <Border Height="{StaticResource SizeSidebarItemHeight}"
                     Padding="{StaticResource SpacingSidebarItemPadding}"
-                    Cursor="Hand"
                     Style="{StaticResource SidebarItemStyle}">
                 <Grid>
                     <Grid.ColumnDefinitions>
@@ -37,7 +41,19 @@
                                FontSize="{StaticResource FontSidebarItemSize}"
                                Foreground="{StaticResource TextPrimaryBrush}"
                                VerticalAlignment="Center"
-                               Margin="{StaticResource SpacingItemTextMargin}"/>
+                               TextTrimming="CharacterEllipsis"
+                               Margin="{StaticResource SpacingItemTextMargin}">
+                        <TextBlock.Style>
+                            <Style TargetType="TextBlock">
+                                <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding IsHint}" Value="True">
+                                        <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </TextBlock.Style>
+                    </TextBlock>
                 </Grid>
             </Border>
         </DataTemplate>
@@ -45,16 +61,13 @@
     </UserControl.Resources>
 
     <ScrollViewer Background="{StaticResource SidebarBrush}"
-                  VerticalScrollBarVisibility="Hidden"
-                  BorderThickness="0,0,1,0"
-                  BorderBrush="{StaticResource SeparatorBrush}">
+                  VerticalScrollBarVisibility="Hidden">
         <StackPanel Margin="{StaticResource SpacingSidebarTopMargin}">
             <ItemsControl ItemsSource="{Binding Sections, RelativeSource={RelativeSource AncestorType=UserControl}}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="local:SidebarSectionView">
                         <StackPanel Margin="{StaticResource SpacingChildSectionMargin}">
 
-                            <!-- Section header (bold) — clickable to toggle collapse -->
                             <Grid Height="{StaticResource SizeSectionHeaderHeight}"
                                   Margin="{StaticResource SpacingSidebarSectionHeaderMargin}"
                                   Cursor="Hand"
@@ -64,7 +77,6 @@
                                     <ColumnDefinition Width="*"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Collapse/expand icon: ▾ when expanded, ▸ when collapsed -->
                                 <TextBlock Grid.Column="0"
                                            FontFamily="{StaticResource AppFontBold}"
                                            FontSize="{StaticResource FontSectionHeaderSize}"
@@ -92,7 +104,6 @@
                                            VerticalAlignment="Center"/>
                             </Grid>
 
-                            <!-- Sidebar items (normal) — visibility bound to IsCollapsed -->
                             <ItemsControl ItemsSource="{Binding Items}"
                                           ItemTemplate="{StaticResource SidebarItemTemplate}">
                                 <ItemsControl.Style>

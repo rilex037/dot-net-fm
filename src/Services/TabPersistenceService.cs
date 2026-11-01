@@ -1,22 +1,16 @@
-
 namespace DotNetFM;
 
-/// <summary>
-/// Saves and restores open tab paths to/from the AppStore.
-/// Keys: tabs.count, tabs.0, tabs.1, ..., tabs.active.
-/// </summary>
 public static class TabPersistenceService
 {
-    /// <summary>
-    /// Saves the list of open tab paths and the active tab index to the store.
-    /// </summary>
+    private static readonly HashSet<string> ValidSortKeys = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "name", "size", "type", "date"
+    };
+
+    public sealed record SavedTab(string Path, string SortKey, bool SortAscending);
+
     public static void SaveTabs(IReadOnlyList<TabStore> tabs, TabStore? activeTab)
     {
-        AppStore.Write("tabs.count", tabs.Count.ToString());
-
-        for (int i = 0; i < tabs.Count; i++)
-            AppStore.Write($"tabs.{i}", tabs[i].State.ActivePath);
-
         int activeIndex = 0;
         if (activeTab != null)
         {
@@ -29,37 +23,54 @@ public static class TabPersistenceService
                 }
             }
         }
-        AppStore.Write("tabs.active", activeIndex.ToString());
+
+        int previousCount = AppStore.ReadInt("tabs.count", 0);
+
+        var changes = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["tabs.count"] = tabs.Count.ToString(),
+            ["tabs.active"] = activeIndex.ToString()
+        };
+
+        for (int i = 0; i < tabs.Count; i++)
+        {
+            changes[$"tabs.{i}"] = tabs[i].State.ActivePath;
+            changes[$"tabs.{i}.sort"] = tabs[i].State.SortKey;
+            changes[$"tabs.{i}.sortasc"] = tabs[i].State.SortAscending ? "1" : "0";
+        }
+
+        for (int i = tabs.Count; i < previousCount; i++)
+        {
+            changes[$"tabs.{i}"] = "";
+            changes[$"tabs.{i}.sort"] = "";
+            changes[$"tabs.{i}.sortasc"] = "";
+        }
+
+        AppStore.WriteMany(changes);
     }
 
-    /// <summary>
-    /// Loads saved tab paths from the store.
-    /// Returns an empty list if no tabs were saved (first run).
-    /// </summary>
-    public static List<string> LoadTabPaths()
+    public static List<SavedTab> LoadTabs()
     {
-        string countStr = AppStore.Read("tabs.count");
-        if (!int.TryParse(countStr, out int count) || count <= 0)
-            return new List<string>();
+        int count = AppStore.ReadInt("tabs.count", 0);
+        if (count <= 0) return [];
 
-        var paths = new List<string>(count);
+        var tabs = new List<SavedTab>(count);
         for (int i = 0; i < count; i++)
         {
             string path = AppStore.Read($"tabs.{i}");
-            if (!string.IsNullOrEmpty(path))
-                paths.Add(path);
+            if (string.IsNullOrEmpty(path)) continue;
+
+            string sortKey = AppStore.Read($"tabs.{i}.sort");
+            if (!ValidSortKeys.Contains(sortKey)) sortKey = "name";
+
+            tabs.Add(new SavedTab(path, sortKey, AppStore.ReadBool($"tabs.{i}.sortasc", true)));
         }
 
-        return paths;
+        return tabs;
     }
 
-    /// <summary>
-    /// Loads the saved active tab index from the store.
-    /// Returns 0 if not found.
-    /// </summary>
     public static int LoadActiveTabIndex()
     {
-        string indexStr = AppStore.Read("tabs.active");
-        return int.TryParse(indexStr, out int index) ? index : 0;
+        return AppStore.ReadInt("tabs.active", 0);
     }
 }

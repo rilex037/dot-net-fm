@@ -3,11 +3,6 @@ using System.Linq;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Windows file system module. Provides local filesystem browsing,
-/// native Windows shell context menus, Win32 icon loading, and
-/// Windows-specific sidebar entries (drives, system folders).
-/// </summary>
 public sealed class WindowsModule : IModule
 {
     private readonly WindowsIconProvider _iconProvider;
@@ -26,7 +21,6 @@ public sealed class WindowsModule : IModule
     public IIconProvider IconProvider => _iconProvider;
     public IContextMenuProvider? ContextMenuProvider => _contextMenuProvider;
 
-    // ── Known CLSIDs for shell namespace virtual folders ──────────
     public static readonly Dictionary<string, string> KnownClsids = new(StringComparer.OrdinalIgnoreCase)
     {
         ["::mycomputer"] = "My Computer",
@@ -36,7 +30,6 @@ public sealed class WindowsModule : IModule
         ["::{D20EA4E1-3957-11D2-848B-00C04FD43608}"] = "Control Panel",
     };
 
-    // ── Static prefixes + dynamic drive letter prefixes ───────────
     private static readonly string[] _staticPrefixes = ["windows", "shell", "::{"];
 
     private static string[] CollectAllPrefixes()
@@ -46,7 +39,7 @@ public sealed class WindowsModule : IModule
         {
             drives = DriveInfo.GetDrives()
                 .Where(d => d.IsReady)
-                .Select(d => d.Name.TrimEnd('\\'))  // "C:\", "D:\" → "C:", "D:"
+                .Select(d => d.Name.TrimEnd('\\'))
                 .ToArray();
         }
         catch
@@ -54,7 +47,7 @@ public sealed class WindowsModule : IModule
             drives = [];
         }
 
-        return [.._staticPrefixes, ..drives];
+        return [.. _staticPrefixes, .. drives];
     }
 
     private readonly Lazy<string[]> _prefixes = new(CollectAllPrefixes);
@@ -69,15 +62,10 @@ public sealed class WindowsModule : IModule
 
     public IDirectoryWatcher CreateDirectoryWatcher() => new WindowsDirectoryWatcher();
 
-    /// <summary>
-    /// Resolves a user-typed display name back to the internal path.
-    /// Used when navigating via the address bar with human-readable names.
-    /// </summary>
     public string? ResolveDisplayName(string name)
     {
         if (string.IsNullOrWhiteSpace(name)) return null;
 
-        // Reverse lookup: "Recycle Bin" → "::{645FF040-...}", "My Computer" → "::mycomputer"
         foreach (var (path, displayName) in KnownClsids)
         {
             if (displayName.Equals(name, StringComparison.OrdinalIgnoreCase))

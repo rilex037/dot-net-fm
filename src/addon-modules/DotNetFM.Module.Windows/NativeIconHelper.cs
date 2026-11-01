@@ -8,21 +8,9 @@ using System.Windows.Media.Imaging;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Shell icon / thumbnail helper.
-/// NO caching — every call fetches fresh from the shell at the exact requested size.
-/// Memory is owned by the caller (FolderItem) and released on navigation.
-/// Bounded concurrency on thumbnail loads (4 shell calls max) to avoid
-/// thread-pool starvation and shell saturation on large folders.
-/// </summary>
 public static class NativeIconHelper
 {
-    // ── Concurrency cap ─────────────────────────────────────────────────────
-    // Shell IShellItemImageFactory calls are blocking native COM operations.
-    // Without a cap, 1000+ items flood the thread pool and the shell stops responding.
     private static readonly SemaphoreSlim ThumbnailGate = new(4, 4);
-
-    // ── Win32 — IShellItemImageFactory (hi-res icons + thumbnails) ───────────
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = false)]
     private static extern void SHCreateItemFromParsingName(
@@ -53,10 +41,7 @@ public static class NativeIconHelper
     [DllImport("gdi32.dll")] private static extern bool DeleteObject(IntPtr hObject);
     [DllImport("user32.dll")] private static extern bool DestroyIcon(IntPtr hIcon);
 
-    // NOT readonly — passed as 'ref' to SHCreateItemFromParsingName, which requires a writable reference
     private static Guid IID_IShellItemImageFactory = new("BCC18B79-BA16-442F-80C4-8A59C30C463B");
-
-    // ── Win32 — SHGetFileInfo (fallback 32×32 icon) ──────────────────────────
 
     [DllImport("shell32.dll", CharSet = CharSet.Auto)]
     private static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes,
@@ -75,20 +60,9 @@ public static class NativeIconHelper
     private const uint SHGFI_ICON      = 0x0100;
     private const uint SHGFI_LARGEICON = 0x0000;
 
-    // ── Public API (no caching — fresh shell call every time) ────────────────
-
-    /// <summary>
-    /// Fast synchronous 32×32 icon for a file via SHGetFileInfo.
-    /// Every call fetches from the shell — no cache.
-    /// </summary>
     public static BitmapSource? GetIconForFile(string filePath)
         => FetchIconViaShgfi(filePath);
 
-    /// <summary>
-    /// Async hi-res thumbnail for files at the exact requested pixel size.
-    /// Falls back to hi-res shell icon. Every call fetches from the shell — no cache.
-    /// Concurrency is capped to 4 simultaneous shell calls.
-    /// </summary>
     public static async Task<BitmapSource?> GetThumbnailAsync(string filePath, int requestedSize, CancellationToken cancellationToken = default)
     {
         await ThumbnailGate.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -104,8 +78,6 @@ public static class NativeIconHelper
             ThumbnailGate.Release();
         }
     }
-
-    // ── Hi-res icon via IShellItemImageFactory ────────────────────────────────
 
     private static BitmapSource? FetchFromImageFactory(string path, int size, SIIGBF flags)
     {
@@ -131,11 +103,8 @@ public static class NativeIconHelper
         }
         catch { }
 
-        // Fallback — 32×32 from SHGetFileInfo
         return FetchIconViaShgfi(path);
     }
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
 
     private static BitmapSource? FetchIconViaShgfi(string path)
     {

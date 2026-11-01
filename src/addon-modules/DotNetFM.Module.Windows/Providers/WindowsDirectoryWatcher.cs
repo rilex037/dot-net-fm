@@ -3,17 +3,12 @@ using System.Windows.Threading;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Windows-specific IDirectoryWatcher implementation using FileSystemWatcher.
-/// Watches a directory for file system changes with debounced notifications.
-/// </summary>
 public sealed class WindowsDirectoryWatcher : IDirectoryWatcher
 {
     private FileSystemWatcher? _watcher;
     private readonly DispatcherTimer _debounceTimer;
     private volatile bool _disposed;
 
-    /// <summary>Fired on file system changes in the watched directory (debounced).</summary>
     public event Action? DirectoryChanged;
 
     public WindowsDirectoryWatcher()
@@ -25,7 +20,6 @@ public sealed class WindowsDirectoryWatcher : IDirectoryWatcher
         _debounceTimer.Tick += OnDebounceTick;
     }
 
-    /// <summary>Starts watching the given directory path. Stops any previous watch.</summary>
     public void Watch(string path)
     {
         Stop();
@@ -62,7 +56,6 @@ public sealed class WindowsDirectoryWatcher : IDirectoryWatcher
         });
     }
 
-    /// <summary>Stops watching and cancels pending debounce.</summary>
     public void Stop()
     {
         _watcher?.Dispose();

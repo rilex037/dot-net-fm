@@ -3,16 +3,8 @@ using System.Runtime.InteropServices;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Enumerates children of any Windows Shell namespace folder identified by a
-/// CLSID path (e.g. "::{645FF040-...}" for Recycle Bin).
-/// Uses IShellFolder COM + SHGetNameFromIDList so display names, filesystem
-/// paths, and shell parsing names resolve correctly for every namespace type.
-/// </summary>
 internal static class ShellNamespaceEnumerator
 {
-    // ── Shell flags ───────────────────────────────────────────────────────────
-
     private const uint SFGAO_FOLDER      = 0x20000000;
     private const uint SHCONTF_FOLDERS       = 0x0020;
     private const uint SHCONTF_NONFOLDERS    = 0x0040;
@@ -24,8 +16,6 @@ internal static class ShellNamespaceEnumerator
         DesktopAbsoluteParsing = 0x80028000,
         FileSystemPath         = 0x80058000,
     }
-
-    // ── P/Invoke ──────────────────────────────────────────────────────────────
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, PreserveSig = true)]
     private static extern int SHParseDisplayName(
@@ -45,8 +35,6 @@ internal static class ShellNamespaceEnumerator
 
     [DllImport("shell32.dll")]
     private static extern void ILFree(IntPtr pidl);
-
-    // ── COM interfaces ────────────────────────────────────────────────────────
 
     [ComImport, Guid("000214E6-0000-0000-C000-000000000046")]
     [InterfaceType(ComInterfaceType.InterfaceIsIUnknown)]
@@ -83,13 +71,6 @@ internal static class ShellNamespaceEnumerator
         void Clone(out IntPtr ppenum);
     }
 
-    // ── Public API ────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Enumerates all items inside the given shell namespace folder.
-    /// Each returned item has a Name (display), FullPath (filesystem or parsing),
-    /// and IsFolder flag.
-    /// </summary>
     public static List<FolderItem> EnumerateFolder(string shellPath)
     {
         var items = new List<FolderItem>();
@@ -149,8 +130,6 @@ internal static class ShellNamespaceEnumerator
         return items;
     }
 
-    // ── Internals ─────────────────────────────────────────────────────────────
-
     private static FolderItem? BuildItem(IntPtr parentPidl, IntPtr childPidl, IShellFolder parentFolder)
     {
         IntPtr absPidl = ILCombine(parentPidl, childPidl);
@@ -161,17 +140,14 @@ internal static class ShellNamespaceEnumerator
             SHGetNameFromIDList(absPidl, SIGDN.NormalDisplay, out string? displayName);
             if (string.IsNullOrEmpty(displayName)) return null;
 
-            // Real filesystem path — null for purely virtual items (Network, Control Panel).
             string? fsPath = null;
             try { SHGetNameFromIDList(absPidl, SIGDN.FileSystemPath, out fsPath); } catch { }
 
-            // Shell parsing name — navigable path even for virtual items.
             string? parsingName = null;
             try { SHGetNameFromIDList(absPidl, SIGDN.DesktopAbsoluteParsing, out parsingName); } catch { }
 
             string itemPath = fsPath ?? parsingName ?? displayName;
 
-            // Check SFGAO_FOLDER on the child's relative PIDL.
             uint attrs = SFGAO_FOLDER;
             parentFolder.GetAttributesOf(1, [childPidl], ref attrs);
             bool isFolder = (attrs & SFGAO_FOLDER) != 0;
@@ -199,7 +175,7 @@ internal static class ShellNamespaceEnumerator
             }
             var fi = new FileInfo(fsPath);
             if (!fi.Exists) return "File";
-            return fi.Length < 1024 ? $"{fi.Length} B" : $"{fi.Length / 1024} KB";
+            return FileSizeFormatter.Format(fi.Length);
         }
         catch { return isFolder ? "Folder" : "File"; }
     }

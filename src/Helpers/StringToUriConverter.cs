@@ -3,9 +3,6 @@ using System.Windows.Data;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Converts a file path string to an absolute URI for SvgViewbox.UriSource binding.
-/// </summary>
 [ValueConversion(typeof(string), typeof(Uri))]
 public class StringToUriConverter : IValueConverter
 {
@@ -15,7 +12,6 @@ public class StringToUriConverter : IValueConverter
         {
             return new Uri(path, UriKind.Absolute);
         }
-        // Return null so SvgViewbox won't try loading anything
         return null!;
     }
 

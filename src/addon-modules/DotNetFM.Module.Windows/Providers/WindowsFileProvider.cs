@@ -3,23 +3,14 @@ using System.Runtime.InteropServices;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Helpers for detecting and resolving Windows Shell CLSID virtual paths
-/// (e.g. "::{645FF040-5081-101B-9F08-00AA002F954E}" for Recycle Bin).
-/// </summary>
 internal static class ShellPathHelper
 {
-    /// <summary>True if the path is a CLSID or ::mycomputer virtual shell path.</summary>
     public static bool IsShellPath(string path) =>
         path.StartsWith("::{", StringComparison.OrdinalIgnoreCase)
         || path.Equals(MyComputerPath, StringComparison.OrdinalIgnoreCase);
 
     public const string MyComputerPath = "::mycomputer";
 
-    /// <summary>
-    /// Maps known CLSIDs to their parent. Currently everything goes to
-    /// MyComputer (Recycle Bin, This PC, Network, Control Panel).
-    /// </summary>
     public static string? GetShellParent(string path)
     {
         if (path.Equals(MyComputerPath, StringComparison.OrdinalIgnoreCase)) return null;
@@ -27,21 +18,17 @@ internal static class ShellPathHelper
     }
 }
 
-/// <summary>
-/// Windows-specific IFileProvider implementation for local filesystem browsing.
-/// Handles drive detection, directory listing with the "My Computer" virtual root,
-/// and shell namespace folders (Recycle Bin, This PC, Network, Control Panel).
-/// </summary>
 public sealed class WindowsFileProvider : IFileProvider
 {
     [DllImport("shlwapi.dll", CharSet = CharSet.Unicode, ExactSpelling = true, SetLastError = false)]
     private static extern int StrCmpLogicalW(string psz1, string psz2);
 
-    /// <summary>Special path representing "My Computer" view.</summary>
     public const string MyComputerPath = ShellPathHelper.MyComputerPath;
 
-    public async Task<FileResult> GetItemsAsync(string path, int offset, int count, CancellationToken cancellationToken = default)
+    public async Task<FileResult> GetItemsAsync(string path, int offset, int count, string sortKey, bool sortAscending, CancellationToken cancellationToken = default)
     {
+        if (string.IsNullOrEmpty(sortKey)) sortKey = "name";
+
         if (ShellPathHelper.IsShellPath(path))
         {
             var items = path == MyComputerPath
@@ -62,40 +49,31 @@ public sealed class WindowsFileProvider : IFileProvider
 
             try
             {
-                // Resolve junctions/symlinks so enumeration hits the real target,
-                // while the caller keeps the original path for display.
+                bool showHidden = AppStore.ReadBool("view.showhidden", false);
+
                 var dirInfo = new DirectoryInfo(ResolveDirectoryTarget(new DirectoryInfo(path)));
 
-                // Single pass over the directory contents (files and folders together)
                 foreach (var fsi in dirInfo.EnumerateFileSystemInfos())
                 {
                     cancellationToken.ThrowIfCancellationRequested();
-                    
+
+                    if (!showHidden && (fsi.Attributes & FileAttributes.Hidden) != 0)
+                        continue;
+
                     try
                     {
                         if (fsi is DirectoryInfo di)
                         {
                             string targetPath = ResolveDirectoryTarget(di);
+                            string itemCount = CountEntries(targetPath, showHidden);
 
-                            string itemCount;
-                            try
+                            items.Add(new FolderItem
                             {
-                                int n = Directory.EnumerateFileSystemEntries(targetPath).Count();
-                                itemCount = n == 0
-                                    ? "Empty Folder"
-                                    : $"{n} item{(n == 1 ? "" : "s")}";
-                            }
-                            catch 
-                            { 
-                                itemCount = "???"; 
-                            }
-
-                            items.Add(new FolderItem 
-                            { 
-                                Name = di.Name, 
-                                ItemCount = itemCount, 
-                                FullPath = di.FullName, 
-                                IsFolder = true 
+                                Name = di.Name,
+                                ItemCount = itemCount,
+                                FullPath = di.FullName,
+                                IsFolder = true,
+                                SortDate = di.LastWriteTime
                             });
                         }
                         else if (fsi is FileInfo fi)
@@ -103,33 +81,40 @@ public sealed class WindowsFileProvider : IFileProvider
                             items.Add(new FolderItem
                             {
                                 Name = fi.Name,
-                                ItemCount = fi.Length < 1024 
-                                    ? $"{fi.Length} B" 
-                                    : $"{fi.Length / 1024} KB",
+                                ItemCount = FileSizeFormatter.Format(fi.Length),
                                 FullPath = fi.FullName,
-                                IsFolder = false
+                                IsFolder = false,
+                                SortDate = fi.LastWriteTime,
+                                SortSize = fi.Length,
+                                SortType = Path.GetExtension(fi.Name).ToLowerInvariant()
                             });
                         }
                     }
                     catch { }
                 }
 
-                items.Sort(NaturalSort);
+                items.Sort((a, b) => CompareItems(a, b, sortKey, sortAscending));
 
-                static int NaturalSort(FolderItem a, FolderItem b)
+                static int CompareItems(FolderItem a, FolderItem b, string sortKey, bool ascending)
                 {
                     int folderCmp = -a.IsFolder.CompareTo(b.IsFolder);
                     if (folderCmp != 0) return folderCmp;
 
-                    if (!a.IsFolder)
+                    int cmp = sortKey switch
                     {
-                        string extA = Path.GetExtension(a.Name);
-                        string extB = Path.GetExtension(b.Name);
-                        int extCmp = StrCmpLogicalW(extA, extB);
-                        if (extCmp != 0) return extCmp;
-                    }
+                        "size" => a.SortSize != b.SortSize
+                            ? a.SortSize.CompareTo(b.SortSize)
+                            : StrCmpLogicalW(a.Name, b.Name),
+                        "type" => a.SortType.Equals(b.SortType, StringComparison.OrdinalIgnoreCase)
+                            ? StrCmpLogicalW(a.Name, b.Name)
+                            : string.CompareOrdinal(a.SortType, b.SortType),
+                        "date" => a.SortDate != b.SortDate
+                            ? a.SortDate.CompareTo(b.SortDate)
+                            : StrCmpLogicalW(a.Name, b.Name),
+                        _ => StrCmpLogicalW(a.Name, b.Name)
+                    };
 
-                    return StrCmpLogicalW(a.Name, b.Name);
+                    return ascending ? cmp : -cmp;
                 }
             }
             catch (OperationCanceledException) { throw; }
@@ -184,10 +169,6 @@ public sealed class WindowsFileProvider : IFileProvider
         catch { return null; }
     }
 
-    /// <summary>
-    /// If <paramref name="di"/> is a junction or symlink, returns the resolved
-    /// target path. Otherwise returns <see cref="DirectoryInfo.FullName"/> unchanged.
-    /// </summary>
     internal static string ResolveDirectoryTarget(DirectoryInfo di)
     {
         if (!di.Attributes.HasFlag(FileAttributes.ReparsePoint))
@@ -197,11 +178,27 @@ public sealed class WindowsFileProvider : IFileProvider
         if (string.IsNullOrEmpty(target))
             return di.FullName;
 
-        // NTFS junctions store the target as \??\C:\path — strip the prefix.
         if (target.StartsWith(@"\\?\"))
             target = target[4..];
 
         return target;
+    }
+
+    private static string CountEntries(string path, bool showHidden)
+    {
+        try
+        {
+            var dir = new DirectoryInfo(path);
+            int n = showHidden
+                ? dir.EnumerateFileSystemInfos().Count()
+                : dir.EnumerateFileSystemInfos().Count(fsi => (fsi.Attributes & FileAttributes.Hidden) == 0);
+
+            return n == 0 ? "Empty Folder" : $"{n} item{(n == 1 ? "" : "s")}";
+        }
+        catch
+        {
+            return "???";
+        }
     }
 
     private static List<FolderItem> GetDriveItems()

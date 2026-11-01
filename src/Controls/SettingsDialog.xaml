@@ -1,0 +1,110 @@
+<Window x:Class="DotNetFM.SettingsDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        ResizeMode="CanResize"
+        MinWidth="480" MinHeight="420"
+        Width="560" Height="600"
+        WindowStartupLocation="CenterOwner"
+        Background="Transparent"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        FontFamily="{StaticResource AppFont}"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        ShowInTaskbar="False">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome GlassFrameThickness="0" CornerRadius="{StaticResource CornerRadiusLarge}" ResizeBorderThickness="1" CaptionHeight="28"/>
+    </WindowChrome.WindowChrome>
+
+    <Border Background="{StaticResource ToolbarBrush}"
+            CornerRadius="{StaticResource CornerRadiusLarge}"
+            Padding="24"
+            MouseLeftButtonDown="Root_MouseLeftButtonDown">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock Grid.Row="0" Text="Settings"
+                       FontSize="{StaticResource FontFileNameSize}"
+                       FontWeight="Bold"
+                       Foreground="{StaticResource TextPrimaryBrush}"
+                       Margin="0,0,0,14"/>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel>
+                    <TextBlock Text="Context menu entries"
+                               FontSize="{StaticResource FontStatusSize}"
+                               Foreground="{StaticResource SectionHeaderBrush}"
+                               Margin="0,0,0,8"/>
+
+                    <StackPanel x:Name="ContextMenuOptions" Margin="4,0,0,4"/>
+
+                    <TextBlock Text="Terminal"
+                               FontSize="{StaticResource FontStatusSize}"
+                               Foreground="{StaticResource SectionHeaderBrush}"
+                               Margin="0,16,0,8"/>
+
+                    <TextBlock Text="Command used by Open in Terminal. %V is replaced with the folder path; if it is missing, the path is appended as an argument."
+                               FontSize="{StaticResource FontFileDetailsSize}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,8"/>
+
+                    <Border Background="{StaticResource InputBackground}"
+                            CornerRadius="{StaticResource CornerRadiusMedium}"
+                            Margin="0,0,0,8">
+                        <TextBox x:Name="TerminalCommandBox"
+                                 Background="Transparent"
+                                 BorderThickness="0"
+                                 Foreground="{StaticResource TextPrimaryBrush}"
+                                 FontSize="{StaticResource FontAddressSize}"
+                                 Padding="{StaticResource SpacingAddressBarPadding}"
+                                 VerticalContentAlignment="Center"
+                                 CaretBrush="{StaticResource AccentBrush}"/>
+                    </Border>
+
+                    <TextBlock Text="Examples:  wt.exe -d &quot;%V&quot;    |    cmd.exe /k cd /d &quot;%V&quot;    |    C:\Apps\MyTerminal\term.exe --cwd %V"
+                               FontSize="{StaticResource FontFileDetailsSize}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"/>
+
+                    <TextBlock Text="Archives"
+                               FontSize="{StaticResource FontStatusSize}"
+                               Foreground="{StaticResource SectionHeaderBrush}"
+                               Margin="0,16,0,8"/>
+
+                    <TextBlock x:Name="ArchiveDetectionText"
+                               FontSize="{StaticResource FontFileDetailsSize}"
+                               Foreground="{StaticResource TextSecondaryBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,10"/>
+
+                    <StackPanel x:Name="ArchiveOptions" Margin="4,0,0,4"/>
+                </StackPanel>
+            </ScrollViewer>
+
+            <Grid Grid.Row="2" Margin="0,16,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Content="Restore _Defaults" MinWidth="104" Height="30"
+                        Style="{StaticResource DialogButton}" Click="RestoreDefaults_Click"/>
+
+                <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Right">
+                    <Button Content="OK" MinWidth="88" Height="30" IsDefault="True"
+                            Style="{StaticResource DialogButton}" Click="OK_Click"/>
+                    <Button Content="Cancel" MinWidth="88" Height="30" Margin="8,0,0,0" IsCancel="True"
+                            Style="{StaticResource DialogButton}" Click="Cancel_Click"/>
+                </StackPanel>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

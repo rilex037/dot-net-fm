@@ -6,21 +6,14 @@ using System.Windows.Input;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Grid view for displaying files and folders.
-/// Pure rendering — all interaction logic lives in <see cref="FileViewContainer"/>.
-/// Implements <see cref="IFileViewContent"/> so the container can host it.
-/// </summary>
 public partial class FileGridView : UserControl, IFileViewContent
 {
-    // ── Dependency properties ─────────────────────────────────────
-
     public static readonly DependencyProperty FoldersProperty =
         DependencyProperty.Register(nameof(Folders), typeof(IEnumerable), typeof(FileGridView));
 
     public static readonly DependencyProperty IconSizeProperty =
         DependencyProperty.Register(nameof(IconSize), typeof(int), typeof(FileGridView),
-            new PropertyMetadata(int.Parse(AppStore.Read("tab.iconsize")), OnIconSizeChanged));
+            new PropertyMetadata(AppStore.ReadInt("tab.iconsize", 64), OnIconSizeChanged));
 
     public static readonly DependencyProperty InteractionServiceProperty =
         DependencyProperty.Register(nameof(InteractionService), typeof(FileInteractionService), typeof(FileGridView));
@@ -28,7 +21,7 @@ public partial class FileGridView : UserControl, IFileViewContent
     private static void OnIconSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
     {
         var grid = (FileGridView)d;
-        int m = (int)e.NewValue >= 128 ? 12 : 4;
+        int m = (int)e.NewValue >= 128 ? 2 : 4;
         grid.Resources["ItemMargin"] = new Thickness(m);
     }
 
@@ -50,39 +43,35 @@ public partial class FileGridView : UserControl, IFileViewContent
         set => SetValue(InteractionServiceProperty, value);
     }
 
-    // ── IFileViewContent ─────────────────────────────────────────
-
     public ItemsControl ItemsControl => FolderItemsControl;
     public ScrollViewer ScrollViewer => FileScrollViewer;
 
     public event Action<MouseWheelEventArgs>? MouseWheelPreview;
-
-    // ── Constructor ──────────────────────────────────────────────
 
     public FileGridView()
     {
         InitializeComponent();
     }
 
-    // ── Rename textbox events (view-specific, forward to service) ──
-
     private void RenameBox_KeyDown(object sender, KeyEventArgs e)
     {
         if (sender is TextBox textBox && textBox.DataContext is FolderItem item && InteractionService != null)
         {
-            InteractionService.HandleRenameKey(item, textBox.Text, e.Key);
+            if (e.Key is Key.Enter or Key.Escape)
+            {
+                InteractionService.HandleRenameKey(item, textBox.Text, e.Key);
+                e.Handled = true;
+            }
         }
     }
 
     private void RenameBox_LostFocus(object sender, RoutedEventArgs e)
     {
-        if (sender is TextBox textBox && textBox.DataContext is FolderItem item && InteractionService != null)
+        if (sender is TextBox textBox && textBox.DataContext is FolderItem item && item.IsEditing && InteractionService != null)
         {
             InteractionService.FinalizeRename(item, textBox.Text);
         }
     }
-
-    // ── Mouse wheel (custom scroll + forward zoom to container) ──
 
     private void FileScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
     {

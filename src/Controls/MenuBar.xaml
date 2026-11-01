@@ -57,6 +57,10 @@
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
+                                <Path x:Name="CheckGlyph" Grid.Column="0" Width="10" Height="10"
+                                      Data="M0,5 L3.5,8.5 L9,1" Stroke="{StaticResource AccentBrush}"
+                                      StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Visibility="Collapsed" VerticalAlignment="Center"/>
                                 <ContentPresenter Grid.Column="0"
                                                   ContentSource="Icon"
                                                   RecognizesAccessKey="True"
@@ -75,6 +79,9 @@
                             </Grid>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible"/>
+                            </Trigger>
                             <Trigger Property="IsHighlighted" Value="True">
                                 <Setter TargetName="Bd" Property="Background"
                                         Value="{StaticResource ButtonHoverBrush}"/>
@@ -114,12 +121,10 @@
                                    Focusable="False"
                                    PopupAnimation="Fade">
                                 <Border Background="{StaticResource ToolbarBrush}"
-                                        BorderBrush="{StaticResource SeparatorBrush}"
-                                        BorderThickness="1"
-                                        CornerRadius="4"
+                                        CornerRadius="6"
                                         Margin="6"
                                         Padding="0,4"
-                                        MinWidth="160"
+                                        MinWidth="200"
                                         Effect="{StaticResource PopupShadow}">
                                     <StackPanel IsItemsHost="True"
                                                 KeyboardNavigation.DirectionalNavigation="Cycle"
@@ -146,22 +151,44 @@
 
     <Menu VerticalAlignment="Center" BorderThickness="0">
         <MenuItem Header="_File" Style="{StaticResource TopItem}">
+            <MenuItem Header="New _Tab" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.NewTab}"/>
+            <MenuItem Header="Close _Tab" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.CloseTab}"/>
+            <Separator Style="{StaticResource MenuSep}"/>
+            <MenuItem Header="_Settings…" Style="{StaticResource DropItem}" Click="Settings_Click"/>
+            <Separator Style="{StaticResource MenuSep}"/>
             <MenuItem Header="E_xit" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Exit}"/>
         </MenuItem>
         <MenuItem Header="_Edit" Style="{StaticResource TopItem}">
-            <MenuItem Header="Cop_y"  Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Copy}"/>
-            <MenuItem Header="Cu_t"   Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Cut}"/>
-            <MenuItem Header="_Paste" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Paste}"/>
+            <MenuItem Header="Cu_t"    Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Cut}"/>
+            <MenuItem Header="_Copy"   Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Copy}"/>
+            <MenuItem Header="_Paste"  Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Paste}"/>
             <Separator Style="{StaticResource MenuSep}"/>
-            <MenuItem Header="_Rename"  Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Rename}"/>
+            <MenuItem Header="_Rename" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Rename}"/>
+            <MenuItem Header="_Delete" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Delete}"/>
             <Separator Style="{StaticResource MenuSep}"/>
-            <MenuItem Header="_Delete"  Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Delete}"/>
+            <MenuItem Header="Select _All" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.SelectAll}"/>
         </MenuItem>
         <MenuItem Header="_View" Style="{StaticResource TopItem}">
             <MenuItem Header="_Refresh" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.Refresh}"/>
             <Separator Style="{StaticResource MenuSep}"/>
+            <MenuItem x:Name="BookmarksSectionToggle" Header="_Bookmarks Section" InputGestureText="Ctrl+B"
+                      IsCheckable="True" Style="{StaticResource DropItem}" Click="BookmarksSectionToggle_Click"/>
+            <MenuItem x:Name="HiddenFilesToggle" Header="Show _Hidden Files" InputGestureText="Ctrl+H"
+                      IsCheckable="True" Style="{StaticResource DropItem}" Click="HiddenFilesToggle_Click"/>
+            <Separator Style="{StaticResource MenuSep}"/>
             <MenuItem Header="Zoom _In"   Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.ZoomIn}"/>
             <MenuItem Header="Zoom _Out"  Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.ZoomOut}"/>
+        </MenuItem>
+        <MenuItem Header="_Go" Style="{StaticResource TopItem}">
+            <MenuItem Header="_Back"    Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.GoBack}"/>
+            <MenuItem Header="_Forward" Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.GoForward}"/>
+            <MenuItem Header="_Up"      Style="{StaticResource DropItem}" Command="{x:Static local:CommandIds.GoUp}"/>
+        </MenuItem>
+        <MenuItem Header="_Bookmarks" Style="{StaticResource TopItem}">
+            <MenuItem Header="_Bookmark This Location…" InputGestureText="Ctrl+D"
+                      Style="{StaticResource DropItem}" Click="AddBookmark_Click"/>
+            <MenuItem Header="_Manage Bookmarks…"
+                      Style="{StaticResource DropItem}" Click="ManageBookmarks_Click"/>
         </MenuItem>
         <MenuItem Header="_Help" Style="{StaticResource TopItem}">
             <MenuItem Header="_About DotNetFM" Style="{StaticResource DropItem}" Click="About_Click"/>

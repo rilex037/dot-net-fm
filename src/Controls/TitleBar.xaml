@@ -3,7 +3,27 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <UserControl.Resources>
-        <Style TargetType="Button" x:Key="CloseButtonStyle">
+        <Style x:Key="WindowButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg" Background="{TemplateBinding Background}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="{StaticResource ButtonHoverBrush}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="CloseButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
@@ -38,6 +58,8 @@
         <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,10,0">
 
             <Button Width="{StaticResource SizeButtonWidth}" Height="{StaticResource SizeButtonHeight}"
+                    Style="{StaticResource WindowButtonStyle}"
+                    ToolTip="Minimize"
                     WindowChrome.IsHitTestVisibleInChrome="True" Click="MinimizeButton_Click">
                 <Path Data="M 0,5 H 10"
                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
@@ -46,6 +68,8 @@
             </Button>
 
             <Button Width="{StaticResource SizeButtonWidth}" Height="{StaticResource SizeButtonHeight}"
+                    Style="{StaticResource WindowButtonStyle}"
+                    ToolTip="Maximize"
                     WindowChrome.IsHitTestVisibleInChrome="True" Click="MaximizeRestoreButton_Click">
                 <Path x:Name="MaximizeIcon" Data="M 0,1 H 10 V 9 H 0 Z"
                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
@@ -55,6 +79,7 @@
 
             <Button Width="{StaticResource SizeButtonWidth}" Height="{StaticResource SizeButtonHeight}"
                     Style="{StaticResource CloseButtonStyle}"
+                    ToolTip="Close"
                     WindowChrome.IsHitTestVisibleInChrome="True" Click="CloseButton_Click">
                 <Path Data="M 0,0 L 10,10 M 10,0 L 0,10"
                       Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"

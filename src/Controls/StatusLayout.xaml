@@ -10,10 +10,10 @@
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
-        <!-- Sidebar collapse toggle button -->
         <Button x:Name="SidebarToggleButton" Grid.Column="0"
                 BorderThickness="0" Margin="{StaticResource SpacingStatusBarIconMargin}"
-                Cursor="Hand" Click="SidebarToggleButton_Click" Focusable="False">
+                Cursor="Hand" Click="SidebarToggleButton_Click" Focusable="False"
+                ToolTip="Toggle sidebar">
             <Button.Template>
                 <ControlTemplate TargetType="Button">
                     <ContentPresenter VerticalAlignment="Center"/>
@@ -38,10 +38,8 @@
             </Border>
         </Button>
 
-        <!-- Status text -->
         <TextBlock x:Name="StatusTextBlock" Grid.Column="1" Text="" FontSize="{StaticResource FontStatusSize}" Foreground="{StaticResource TextSecondaryBrush}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
 
-        <!-- Zoom slider (bottom-right) — steps: 48, 64, 128, 256, 512 -->
         <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource SpacingZoomGroupMargin}">
             <Slider x:Name="ZoomSlider" Width="80" Height="20" Background="Transparent" BorderThickness="0"
                     ValueChanged="ZoomSlider_ValueChanged"

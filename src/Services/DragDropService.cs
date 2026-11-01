@@ -4,20 +4,11 @@ using System.Windows.Input;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Handles drag & drop initiation, drag-over feedback, and drop execution.
-/// File transfer on drop is delegated via <see cref="TransferRequested"/>.
-/// This separation allows cross-tab drops later (drop on tab strip).
-/// </summary>
 public class DragDropService
 {
     private Point _dragStartPoint;
     private bool _dragThresholdArmed;
 
-    /// <summary>
-    /// Invoked when a drop should transfer files.
-    /// Parameters: sourcePaths, targetDirectory, forceCopy.
-    /// </summary>
     public Action<string[], string, bool>? TransferRequested;
 
     public void ArmDrag(Point screenPosition)
@@ -26,10 +17,6 @@ public class DragDropService
         _dragThresholdArmed = true;
     }
 
-    /// <summary>
-    /// Checks drag threshold and initiates <see cref="DragDrop.DoDragDrop"/> if exceeded.
-    /// Returns true if the drag resulted in a Move operation.
-    /// </summary>
     public bool UpdateDrag(DependencyObject dragSource, IEnumerable<FolderItem> folders)
     {
         if (!_dragThresholdArmed || Mouse.LeftButton != MouseButtonState.Pressed)
@@ -51,30 +38,34 @@ public class DragDropService
         if (paths.Count == 0) return false;
 
         var data = new DataObject(DataFormats.FileDrop, paths.ToArray());
-        var result = DragDrop.DoDragDrop(dragSource, data, DragDropEffects.Move | DragDropEffects.Copy);
-        return result == DragDropEffects.Move;
+        DragDrop.DoDragDrop(dragSource, data, DragDropEffects.Move | DragDropEffects.Copy);
+        return true;
     }
 
     public void HandleDragOver(DragEventArgs e)
     {
-        e.Effects = e.Data.GetDataPresent(DataFormats.FileDrop)
-            ? DragDropEffects.Move | DragDropEffects.Copy
-            : DragDropEffects.None;
+        if (!e.Data.GetDataPresent(DataFormats.FileDrop))
+        {
+            e.Effects = DragDropEffects.None;
+        }
+        else if (Keyboard.Modifiers.HasFlag(ModifierKeys.Control))
+        {
+            e.Effects = DragDropEffects.Copy;
+        }
+        else
+        {
+            e.Effects = DragDropEffects.Move | DragDropEffects.Copy;
+        }
         e.Handled = true;
     }
 
-    /// <summary>
-    /// Handles a drop: extracts file paths, guards against same-directory and
-    /// self-drop, then invokes <see cref="TransferRequested"/>.
-    /// </summary>
-    public void HandleDrop(DragEventArgs e, string targetDirectory)
+    public void HandleDrop(DragEventArgs e, string targetDirectory, bool forceCopy)
     {
         if (!e.Data.GetDataPresent(DataFormats.FileDrop)) return;
 
         var paths = e.Data.GetData(DataFormats.FileDrop) as string[];
         if (paths == null || paths.Length == 0) return;
 
-        // Prevent dropping items into their own directory (same-view drag)
         string? sourceDir = Path.GetDirectoryName(paths[0]);
         if (sourceDir != null &&
             string.Equals(Path.GetFullPath(sourceDir), Path.GetFullPath(targetDirectory), StringComparison.OrdinalIgnoreCase))
@@ -83,7 +74,6 @@ public class DragDropService
             return;
         }
 
-        // Prevent dropping a parent folder into itself (e.g. "FolderA" onto its subfolder)
         foreach (var source in paths)
         {
             if (Directory.Exists(source))
@@ -99,7 +89,7 @@ public class DragDropService
             }
         }
 
-        TransferRequested?.Invoke(paths, targetDirectory, false);
+        TransferRequested?.Invoke(paths, targetDirectory, forceCopy);
         e.Handled = true;
     }
 }

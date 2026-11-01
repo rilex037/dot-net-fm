@@ -77,7 +77,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="local:FolderItem">
                         <Border x:Name="ItemBorder" Cursor="Hand"
-                                Margin="{DynamicResource  ItemMargin}" CornerRadius="{StaticResource CornerRadiusLarge}">
+                                Margin="{DynamicResource ItemMargin}" CornerRadius="{StaticResource CornerRadiusLarge}">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Background" Value="Transparent"/>
@@ -98,9 +98,8 @@
                                         Margin="{StaticResource SpacingItemPadding}"
                                         Width="{Binding IconSize,
                                                 RelativeSource={RelativeSource AncestorType=local:FileGridView},
-                                                ConverterParameter=2.0}">
+                                                Converter={StaticResource IconWidthConverter}}">
 
-                                <!-- Fixed-height zone keeps row heights uniform in the WrapPanel -->
                                 <Border Height="{Binding IconSize, RelativeSource={RelativeSource AncestorType=local:FileGridView}}"
                                         HorizontalAlignment="Stretch"
                                         Margin="{StaticResource SpacingIconBottomMargin}">
@@ -119,7 +118,6 @@
                                            Foreground="{StaticResource TextPrimaryBrush}"
                                            HorizontalAlignment="Center"
                                            TextAlignment="Center"
-                                           LineHeight="12"
                                            TextWrapping="Wrap">
                                     <TextBlock.Style>
                                         <Style TargetType="TextBlock">
@@ -134,14 +132,20 @@
                                 </TextBlock>
 
                                 <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
-                                         Background="{StaticResource InputBackground}"
+                                         Background="Transparent"
                                          Foreground="{StaticResource TextPrimaryBrush}"
-                                         BorderBrush="{StaticResource IconBrush}"
-                                         BorderThickness="1"
+                                         FontFamily="{StaticResource AppFont}"
+                                         BorderThickness="0"
                                          FontSize="{StaticResource FontFileNameSize}"
-                                         Padding="{StaticResource SpacingCompactPadding}"
-                                         HorizontalAlignment="Stretch"
+                                         Padding="1,0"
+                                         MinWidth="160"
+                                         MaxWidth="380"
+                                         HorizontalAlignment="Center"
+                                         TextAlignment="Center"
+                                         TextWrapping="Wrap"
                                          VerticalContentAlignment="Center"
+                                         CaretBrush="{StaticResource TextPrimaryBrush}"
+                                         SelectionBrush="{StaticResource SelectionBackground}"
                                          KeyDown="RenameBox_KeyDown"
                                          LostFocus="RenameBox_LostFocus">
                                     <TextBox.Style>

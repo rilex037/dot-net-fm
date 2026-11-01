@@ -5,9 +5,6 @@ using System.Windows.Media;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Title bar with window title and chrome controls (minimize, maximize, close).
-/// </summary>
 public partial class TitleBar : UserControl
 {
     private Window? _ownerWindow;
@@ -35,7 +32,6 @@ public partial class TitleBar : UserControl
     private void OwnerWindow_StateChanged(object? sender, EventArgs e) =>
         UpdateMaximizeIcon();
 
-    /// <summary>Sets the title bar display text.</summary>
     public void SetTitle(string title) =>
         TitleTextBlock.Text = title;
 

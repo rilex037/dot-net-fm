@@ -4,12 +4,11 @@
              xmlns:local="clr-namespace:DotNetFM">
     <Application.Resources>
         <local:StringToUriConverter x:Key="StringToUriConverter"/>
+        <local:IconWidthConverter x:Key="IconWidthConverter"/>
 
-        <!-- Custom Fonts -->
         <FontFamily x:Key="AppFont">pack://application:,,,/Assets/Fonts/NotoSans-Regular.ttf#NotoSans Regular</FontFamily>
         <FontFamily x:Key="AppFontBold">pack://application:,,,/Assets/Fonts/NotoSans-SemiBold.ttf#NotoSans SemiBold</FontFamily>
 
-        <!-- Global Styles -->
         <Style TargetType="Window">
             <Setter Property="Background" Value="{StaticResource BackgroundBrush}"/>
             <Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
@@ -21,7 +20,6 @@
             <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
         </Style>
 
-        <!-- Default button style – accent background on hover (single source of truth) -->
         <Style TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -42,7 +40,167 @@
             </Setter>
         </Style>
 
-        <!-- Zoom Thumb Style -->
+        <Style x:Key="SubtleButton" TargetType="Button">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Focusable" Value="False"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg" Background="{TemplateBinding Background}" CornerRadius="4">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="{StaticResource TabHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.3"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <DropShadowEffect x:Key="MenuShadow"
+                          Color="Black" Opacity="0.45"
+                          BlurRadius="10" ShadowDepth="3"
+                          Direction="270"/>
+
+        <Style x:Key="DialogButton" TargetType="Button">
+            <Setter Property="Background" Value="{StaticResource InputBackground}"/>
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="bg" Background="{TemplateBinding Background}"
+                                CornerRadius="4"
+                                Padding="16,7">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsDefault" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="{StaticResource SelectedItemBackground}"/>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="bg" Property="Background" Value="{StaticResource ButtonHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="bg" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ThemedContextMenu" TargetType="ContextMenu">
+            <Setter Property="Background" Value="{StaticResource ToolbarBrush}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="0,4"/>
+            <Setter Property="FontFamily" Value="{StaticResource AppFont}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{TemplateBinding Background}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="6"
+                                Padding="{TemplateBinding Padding}"
+                                Margin="6"
+                                Effect="{StaticResource MenuShadow}">
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ThemedMenuItem" TargetType="MenuItem">
+            <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+            <Setter Property="FontSize" Value="{StaticResource FontContextMenuSize}"/>
+            <Setter Property="FontWeight" Value="{StaticResource FontContextMenuWeight}"/>
+            <Setter Property="FocusVisualStyle" Value="{x:Null}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Bd" Background="Transparent"
+                                CornerRadius="4"
+                                Margin="6,1"
+                                Padding="10,5,12,5">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+                                <Path x:Name="CheckGlyph" Grid.Column="0" Width="10" Height="10" Margin="0,0,8,0"
+                                      Data="M0,5 L3.5,8.5 L9,1" Stroke="{StaticResource AccentBrush}"
+                                      StrokeThickness="1.6" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Visibility="Collapsed" VerticalAlignment="Center"/>
+                                <ContentPresenter Grid.Column="1" ContentSource="Header"
+                                                  RecognizesAccessKey="True"
+                                                  VerticalAlignment="Center"/>
+                                <TextBlock x:Name="GestureText" Grid.Column="2"
+                                           Text="{Binding InputGestureText, RelativeSource={RelativeSource TemplatedParent}}"
+                                           Foreground="{StaticResource TextSecondaryBrush}"
+                                           FontSize="{StaticResource FontContextMenuShortcutSize}"
+                                           VerticalAlignment="Center"
+                                           Margin="20,0,0,0"/>
+                                <Path x:Name="ArrowGlyph" Grid.Column="3" Width="8" Height="10" Margin="12,0,2,0"
+                                      Data="M2,1 L6,5 L2,9" Stroke="{StaticResource TextSecondaryBrush}"
+                                      StrokeThickness="1.4" StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      Visibility="Collapsed" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                <Popup x:Name="PART_Popup"
+                                       IsOpen="{Binding IsSubmenuOpen, RelativeSource={RelativeSource TemplatedParent}}"
+                                       AllowsTransparency="True"
+                                       Placement="Right"
+                                       VerticalOffset="-5"
+                                       Focusable="False"
+                                       PopupAnimation="Fade">
+                                    <Border Background="{StaticResource ToolbarBrush}"
+                                            CornerRadius="6"
+                                            Padding="0,4"
+                                            Margin="6"
+                                            Effect="{StaticResource MenuShadow}">
+                                        <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                                    </Border>
+                                </Popup>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="CheckGlyph" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="HasItems" Value="True">
+                                <Setter TargetName="ArrowGlyph" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="GestureText" Property="Visibility" Value="Collapsed"/>
+                            </Trigger>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource ButtonHoverBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="Bd" Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="ThemedSeparator" TargetType="Separator">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Separator">
+                        <Border Height="1" Margin="8,3" Background="{StaticResource SeparatorBrush}"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <Style x:Key="ZoomThumbStyle" TargetType="Thumb">
             <Setter Property="OverridesDefaultStyle" Value="True"/>
             <Setter Property="IsTabStop" Value="False"/>
@@ -58,7 +216,6 @@
             </Setter>
         </Style>
 
-        <!-- Zoom Slider Style - snaps to 6 discrete icon-size steps (0-5) -->
         <Style x:Key="ZoomSliderStyle" TargetType="Slider">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -75,12 +232,10 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <!-- Track line -->
                             <Border Grid.Row="0" Height="4"
                                     Background="{StaticResource SliderTrackBrush}"
                                     CornerRadius="2"
                                     VerticalAlignment="Center"/>
-                            <!-- Track with interactive Thumb -->
                             <Track x:Name="PART_Track" Grid.Row="0"
                                    VerticalAlignment="Center">
                                 <Track.Thumb>

@@ -4,13 +4,6 @@ using System.Windows.Threading;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Owns all mutable backing data for a single tab and exposes only an
-/// immutable <see cref="TabStateRecord"/> snapshot plus a read-only
-/// <see cref="ReadOnlyObservableCollection{FolderItem}"/> for the grid.
-/// All mutations go through <see cref="Dispatch"/>. External callers
-/// never reach into internal services.
-/// </summary>
 public sealed class TabStore : IDisposable
 {
     private TabStateRecord _state;
@@ -24,18 +17,11 @@ public sealed class TabStore : IDisposable
 
     private const int BatchSize = 20;
 
-    // ── Public read-only surface ───────────────────────────────────
-
-    /// <summary>Immutable state snapshot. Changes only via reducer.</summary>
     public TabStateRecord State => _state;
 
-    /// <summary>Read-only view of the folder items for binding.</summary>
     public ReadOnlyObservableCollection<FolderItem> Folders { get; }
 
-    /// <summary>Single event — any UI change flows through here.</summary>
     public event Action<TabStateRecord>? StateChanged;
-
-    // ── Construction ───────────────────────────────────────────────
 
     public TabStore(string userProfilePath, IFileProvider fileProvider, IIconProvider? iconProvider, IDirectoryWatcher directoryWatcher)
     {
@@ -56,8 +42,6 @@ public sealed class TabStore : IDisposable
         _directoryWatcher.DirectoryChanged += _directoryChangedHandler;
     }
 
-    // ── Dispatch — single entry point for all mutations ────────────
-
     public void Dispatch(TabAction action)
     {
         switch (action)
@@ -65,7 +49,6 @@ public sealed class TabStore : IDisposable
             case TabAction.NavigateTo a:
                 if (!_navigation.NavigateTo(a.Path, a.PushToHistory))
                 {
-                    // Path invalid — update status only, don't change state
                     _state = TabReducer.Reduce(_state, new TabAction.StatusTextUpdated("Path not found"));
                     StateChanged?.Invoke(_state);
                     return;
@@ -97,6 +80,7 @@ public sealed class TabStore : IDisposable
             case TabAction.DirectoryFileChangeDetected:
                 if (_state.LoadStatus != TabLoadStatus.Idle) return;
                 if (string.IsNullOrEmpty(_state.ActivePath)) return;
+                if (AnyItemEditing()) return;
                 _navigation.NavigateTo(_state.ActivePath, pushToHistory: false);
                 break;
 
@@ -115,6 +99,19 @@ public sealed class TabStore : IDisposable
                     _ = ReloadIconsAsync(a.Size);
                 return;
 
+            case TabAction.SetSort:
+                _state = TabReducer.Reduce(_state, action);
+                StateChanged?.Invoke(_state);
+
+                if (!string.IsNullOrEmpty(_state.ActivePath) &&
+                    !_fileProvider.IsVirtualRoot(_state.ActivePath))
+                {
+                    _state = TabReducer.Reduce(_state, new TabAction.BeginRefresh());
+                    StateChanged?.Invoke(_state);
+                    _navigation.NavigateTo(_state.ActivePath, pushToHistory: false);
+                }
+                return;
+
             default:
                 break;
         }
@@ -123,7 +120,14 @@ public sealed class TabStore : IDisposable
         StateChanged?.Invoke(_state);
     }
 
-    // ── Internal: async directory loading ──────────────────────────
+    private bool AnyItemEditing()
+    {
+        foreach (var item in _folders)
+        {
+            if (item.IsEditing) return true;
+        }
+        return false;
+    }
 
     private async void OnNavigationDirectoryLoaded(string path)
     {
@@ -137,7 +141,7 @@ public sealed class TabStore : IDisposable
         List<FolderItem> items;
         try
         {
-            items = await _navigation.LoadDirectoryItemsAsync(path);
+            items = await _navigation.LoadDirectoryItemsAsync(path, _state.SortKey, _state.SortAscending);
         }
         catch
         {
@@ -164,8 +168,6 @@ public sealed class TabStore : IDisposable
 
         _ = LoadIconsBatchedAsync(a.Items);
     }
-
-    // ── Internal: icon loading in batches ──────────────────────────
 
     private async System.Threading.Tasks.Task LoadIconsBatchedAsync(IReadOnlyList<FolderItem> items)
     {
@@ -231,8 +233,6 @@ public sealed class TabStore : IDisposable
             }
         }
     }
-
-    // ── Disposal ──────────────────────────────────────────────────
 
     public void SaveScrollOffset(string path, double offset)
     {

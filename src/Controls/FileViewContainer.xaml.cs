@@ -6,15 +6,8 @@ using System.Windows.Threading;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Container that owns ALL interaction logic (selection, rubber band, click dispatch,
-/// rename, drag-drop) and hosts a swappable child view for rendering.
-/// Child views implement <see cref="IFileViewContent"/> and only provide layout/template.
-/// </summary>
 public partial class FileViewContainer : UserControl, IFileView
 {
-    // ── Dependency properties ─────────────────────────────────────
-
     public static readonly DependencyProperty FoldersProperty =
         DependencyProperty.Register(nameof(Folders), typeof(IEnumerable), typeof(FileViewContainer));
 
@@ -61,11 +54,12 @@ public partial class FileViewContainer : UserControl, IFileView
         set => SetValue(CurrentPathProperty, value);
     }
 
-    // ── Active child view ────────────────────────────────────────
+    public event Action<Point, string>? BackgroundContextMenuRequested;
+
+    public event Action? SelectionChanged;
 
     private IFileViewContent? _activeContent;
 
-    /// <summary>Sets the active child view for rendering.</summary>
     public void SetActiveContent(IFileViewContent content)
     {
         if (_activeContent != null)
@@ -116,27 +110,17 @@ public partial class FileViewContainer : UserControl, IFileView
             _typeAhead.Reset();
     }
 
-    // ── Selection state ──────────────────────────────────────────
-
     private FolderItem? _anchorItem;
     private HashSet<FolderItem>? _preRubberBandSnapshot;
-
-    // ── Rubber band state ────────────────────────────────────────
 
     private bool _isRubberBanding;
     private Point _rubberBandStart;
 
-    // ── Deferred click on already-selected items ─────────────────
-    // Click is deferred to mouse-up so we can differentiate click vs drag.
     private FolderItem? _pendingSelectedClick;
     private bool _pendingIsNameClick;
     private Point _pendingClickDownPoint;
 
-    // ── Type-ahead navigation state ──────────────────────────────
-
     private readonly TypeAheadBuffer _typeAhead = new();
-
-    // ── Constructor ──────────────────────────────────────────────
 
     public FileViewContainer()
     {
@@ -158,23 +142,14 @@ public partial class FileViewContainer : UserControl, IFileView
         }
     }
 
-    // ── Hit testing helper ───────────────────────────────────────
-
     private FolderItem? GetHitItem(MouseEventArgs e)
     {
         if (ActiveItemsControl == null) return null;
         return VisualTreeUtility.GetFolderItemAtPoint(ActiveItemsControl, e.GetPosition(ActiveItemsControl));
     }
 
-    // ── Type-ahead navigation ────────────────────────────────────
-
-    /// <summary>
-    /// Accumulates typed characters and jumps the selection to the first item
-    /// whose name starts with the current buffer prefix (case-insensitive).
-    /// </summary>
     private void FileViewContainer_PreviewTextInput(object sender, TextCompositionEventArgs e)
     {
-        // Ignore typing while a rename is active — let the TextBox own the keystrokes.
         if (IsAnyItemEditing()) return;
 
         foreach (char c in e.Text)
@@ -186,6 +161,7 @@ public partial class FileViewContainer : UserControl, IFileView
         {
             SelectSingle(match);
             ScrollItemIntoView(match);
+            SelectionChanged?.Invoke();
             e.Handled = true;
         }
     }
@@ -198,10 +174,6 @@ public partial class FileViewContainer : UserControl, IFileView
         return false;
     }
 
-    /// <summary>
-    /// Finds the first item whose name begins with <paramref name="prefix"/>
-    /// (case-insensitive, ordinal). Returns false when nothing matches.
-    /// </summary>
     private bool TryFindItemByPrefix(string prefix, out FolderItem match)
     {
         if (Folders is IEnumerable<FolderItem> items)
@@ -220,21 +192,34 @@ public partial class FileViewContainer : UserControl, IFileView
         return false;
     }
 
-    /// <summary>Selects exactly one item, clearing every other selection.</summary>
     private void SelectSingle(FolderItem item)
     {
         ClearAllSelections();
         item.IsSelected = true;
     }
 
-    /// <summary>Brings the item's container into view by scrolling if needed.</summary>
     private void ScrollItemIntoView(FolderItem item)
     {
         if (ActiveItemsControl?.ItemContainerGenerator.ContainerFromItem(item) is FrameworkElement container)
             container.BringIntoView();
     }
 
-    // ── Item click handling ──────────────────────────────────────
+    public bool SelectItemByPath(string fullPath)
+    {
+        if (Folders is not IEnumerable<FolderItem> items) return false;
+
+        foreach (var item in items)
+        {
+            if (!string.Equals(item.FullPath, fullPath, StringComparison.OrdinalIgnoreCase)) continue;
+
+            SelectSingle(item);
+            ScrollItemIntoView(item);
+            SelectionChanged?.Invoke();
+            return true;
+        }
+
+        return false;
+    }
 
     private void HandleItemClick(FolderItem clickedItem, bool isNameClick, ModifierKeys modifiers)
     {
@@ -259,11 +244,10 @@ public partial class FileViewContainer : UserControl, IFileView
 
         if (!modifiers.HasFlag(ModifierKeys.Shift))
             _anchorItem = clickedItem;
+
+        SelectionChanged?.Invoke();
     }
 
-    /// <summary>
-    /// Selects a contiguous range from the anchor to the target item (inclusive).
-    /// </summary>
     private void SelectRange(FolderItem toItem)
     {
         if (Folders is not IEnumerable<FolderItem> items) return;
@@ -285,13 +269,10 @@ public partial class FileViewContainer : UserControl, IFileView
             list[i].IsSelected = true;
     }
 
-    // ── Rubber band selection ────────────────────────────────────
-
     private void FileView_PreviewMouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (InteractionService == null) return;
 
-        // Skip rubber band near scrollbar
         var scroll = ActiveScrollViewer;
         if (scroll != null)
         {
@@ -313,7 +294,6 @@ public partial class FileViewContainer : UserControl, IFileView
             bool isNameClick = e.OriginalSource is TextBlock;
             if (hitItem.IsSelected)
             {
-                // Defer click action to mouse-up to differentiate click vs drag
                 _pendingSelectedClick = hitItem;
                 _pendingIsNameClick = isNameClick;
                 _pendingClickDownPoint = e.GetPosition(null);
@@ -393,7 +373,6 @@ public partial class FileViewContainer : UserControl, IFileView
 
     private void FileView_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
     {
-        // Process deferred click on already-selected item (was click, not drag)
         if (_pendingSelectedClick != null)
         {
             var clicked = _pendingSelectedClick;
@@ -407,9 +386,9 @@ public partial class FileViewContainer : UserControl, IFileView
         SelectionBorder.Visibility = Visibility.Collapsed;
         _isRubberBanding = false;
         _preRubberBandSnapshot = null;
-    }
 
-    // ── Right-click context menu ─────────────────────────────────
+        SelectionChanged?.Invoke();
+    }
 
     private void FileView_PreviewMouseRightButtonUp(object sender, MouseButtonEventArgs e)
     {
@@ -437,14 +416,17 @@ public partial class FileViewContainer : UserControl, IFileView
                 var screenPos = PointToScreen(e.GetPosition(this));
                 InteractionService.ContextMenuRequested?.Invoke(screenPos, selectedPaths);
             }
+            return;
         }
+
+        ClearAllSelections();
+        SelectionChanged?.Invoke();
+
+        var backgroundPos = PointToScreen(e.GetPosition(this));
+        BackgroundContextMenuRequested?.Invoke(backgroundPos, CurrentPath);
+        e.Handled = true;
     }
 
-    // ── Rename commit helpers ────────────────────────────────────
-
-    /// <summary>
-    /// Commits the active rename if one exists, locating the TextBox from the active editing item.
-    /// </summary>
     public void CommitAnyRename()
     {
         if (InteractionService == null) return;
@@ -458,9 +440,6 @@ public partial class FileViewContainer : UserControl, IFileView
             });
     }
 
-    /// <summary>
-    /// Begins rename on the given item, focusing the TextBox and selecting the appropriate text.
-    /// </summary>
     public void FocusRenameTextBox(FolderItem item)
     {
         Application.Current.Dispatcher.BeginInvoke(DispatcherPriority.Input, () =>
@@ -482,9 +461,6 @@ public partial class FileViewContainer : UserControl, IFileView
         });
     }
 
-    /// <summary>
-    /// Finds the rename TextBox for the given item by traversing the active content's visual tree.
-    /// </summary>
     private TextBox? FindRenameBox(FolderItem item)
     {
         if (ActiveItemsControl == null) return null;
@@ -493,11 +469,6 @@ public partial class FileViewContainer : UserControl, IFileView
         return VisualTreeUtility.FindDescendant<TextBox>(container);
     }
 
-    // ── Selection helpers ────────────────────────────────────────
-
-    /// <summary>
-    /// Snapshots the current selection for Ctrl+rubber band additive mode.
-    /// </summary>
     private void SnapshotRubberBandSelection(bool ctrlHeld)
     {
         if (ctrlHeld && Folders is IEnumerable<FolderItem> items)
@@ -522,21 +493,11 @@ public partial class FileViewContainer : UserControl, IFileView
         }
     }
 
-    // ── Middle-click → open in new tab ──────────────────────────
-
     public event Action<string>? OpenInNewTabRequested;
 
-    /// <summary>
-    /// Raised when files are dropped onto a file (not a folder).
-    /// Parameters: target file path, dropped file paths.
-    /// </summary>
     public event Action<string, List<string>>? DropOnFileRequested;
 
-    // ── Mouse wheel / zoom ───────────────────────────────────────
-
     public event Action<MouseWheelEventArgs>? MouseWheelPreview;
-
-    // ── Drag and drop ────────────────────────────────────────────
 
     private void FileView_DragOver(object sender, DragEventArgs e)
     {
@@ -555,14 +516,13 @@ public partial class FileViewContainer : UserControl, IFileView
 
         if (hitItem is { IsFolder: false })
         {
-            // Drop onto a file — execute the target file with dropped files as arguments.
             DropOnFileRequested?.Invoke(hitItem.FullPath, [.. droppedPaths]);
             e.Handled = true;
             return;
         }
 
-        // Drop onto a folder or empty space — delegate to drag-drop for transfer.
+        bool forceCopy = Keyboard.Modifiers.HasFlag(ModifierKeys.Control);
         string targetDir = hitItem != null ? hitItem.FullPath : CurrentPath;
-        DragDropService.HandleDrop(e, targetDir);
+        DragDropService.HandleDrop(e, targetDir, forceCopy);
     }
 }

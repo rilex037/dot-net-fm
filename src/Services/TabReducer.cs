@@ -1,19 +1,9 @@
-using System.IO;
-
 namespace DotNetFM;
 
-/// <summary>
-///     Pure-function reducer that takes current TabStateRecord + TabAction
-///     and returns the next state via with expressions.
-///     Handles: navigation (NavigateTo, GoBack/Forward/Up), directory loaded,
-///     refresh, icon size, internal sync (title, status, nav state), fallback.
-/// </summary>
 public static class TabReducer
 {
     public static TabStateRecord Reduce(TabStateRecord state, TabAction action) => action switch
     {
-        // ── Navigation ────────────────────────────────────────────
-
         TabAction.NavigateTo a => state with
         {
             ActivePath  = a.Path,
@@ -26,8 +16,6 @@ public static class TabReducer
             LoadStatus = TabLoadStatus.Loading
         },
 
-        // ── Directory content ─────────────────────────────────────
-
         TabAction.DirectoryLoaded a => state with
         {
             ActivePath  = a.Path,
@@ -35,8 +23,6 @@ public static class TabReducer
             LoadStatus  = TabLoadStatus.Idle,
             ItemCount   = a.Items.Count,
         },
-
-        // ── Refresh ───────────────────────────────────────────────
 
         TabAction.BeginRefresh => state with
         {
@@ -48,14 +34,16 @@ public static class TabReducer
             LoadStatus = TabLoadStatus.Refreshing
         },
 
-        // ── UI state ─────────────────────────────────────────────
-
         TabAction.SetIconSize a => state with
         {
             IconSize = a.Size
         },
 
-        // ── Internal state updates from NavigationService ────────
+        TabAction.SetSort a => state with
+        {
+            SortKey       = a.SortKey,
+            SortAscending = a.SortAscending
+        },
 
         TabAction.TitleUpdated a => state with
         {
@@ -74,14 +62,12 @@ public static class TabReducer
             CanGoUp      = a.CanGoUp
         },
 
-        // ── Fallback ─────────────────────────────────────────────
-
         _ => state
     };
 
     private static string DeriveTitle(string path)
     {
-        string name = Path.GetFileName(path);
+        string name = System.IO.Path.GetFileName(path);
         return string.IsNullOrEmpty(name) ? path : name;
     }
 }

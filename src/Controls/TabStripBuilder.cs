@@ -6,10 +6,6 @@ using SharpVectors.Converters;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Builds tab strip UI elements from tab stores. Single responsibility:
-/// translate tab state into visual tab items inside a panel.
-/// </summary>
 public sealed class TabStripBuilder
 {
     private readonly IModule _module;
@@ -22,93 +18,146 @@ public sealed class TabStripBuilder
         _tabs = tabs;
     }
 
-    /// <summary>
-    /// Rebuilds the tab strip panel from current tab state.
-    /// Unsubscribes previous title handlers, creates fresh UI, and wires new handlers.
-    /// </summary>
     public void Rebuild(Panel panel)
     {
         UnsubscribeAll();
         panel.Children.Clear();
 
-        foreach (var store in _tabs.Tabs)
+        for (int i = 0; i < _tabs.Tabs.Count; i++)
         {
+            var store = _tabs.Tabs[i];
             var tabId = store.State.TabId;
             bool isActive = _tabs.ActiveTab?.State.TabId == tabId;
 
-            var titleBlock = new TextBlock
-            {
-                Text = _module.FileProvider.GetDisplayTitle(store.State.ActivePath),
-                VerticalAlignment = VerticalAlignment.Center,
-                FontSize = (double)Application.Current.FindResource("FontTabTitleSize"),
-                Foreground = (Brush)Application.Current.FindResource("TextPrimaryBrush"),
-                MinWidth = (double)Application.Current.FindResource("SizeTabTitleMinWidth"),
-                MaxWidth = (double)Application.Current.FindResource("SizeTabTitleMaxWidth"),
-                TextTrimming = TextTrimming.CharacterEllipsis,
-                Margin = new Thickness(0, 0, 8, 0),
-            };
+            if (i > 0)
+                panel.Children.Add(BuildSeparator());
 
-            double closeBtnSize = (double)Application.Current.FindResource("SizeTabCloseButtonSize");
-
-            var iconPath = IconProvider.GetFullPath("window-close.svg");
-
-            var closeButton = new Button
-            {
-                Width = closeBtnSize,
-                Height = closeBtnSize,
-                Background = Brushes.Transparent,
-                BorderThickness = new Thickness(0),
-                Foreground = (Brush)Application.Current.FindResource("TextSecondaryBrush"),
-                Cursor = Cursors.Hand,
-                Focusable = false,
-                VerticalAlignment = VerticalAlignment.Center,
-                Tag = tabId,
-                Content = new SvgViewbox
-                {
-                    UriSource = new Uri(iconPath, UriKind.Absolute),
-                    Width = closeBtnSize * 0.5,
-                    Height = closeBtnSize * 0.5,
-                },
-            };
-
-            closeButton.Click += (_, _) => _tabs.CloseTab(tabId);
-
-            var tabGrid = new Grid
-            {
-                VerticalAlignment = VerticalAlignment.Stretch,
-            };
-            tabGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
-            tabGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
-            Grid.SetColumn(titleBlock, 0);
-            Grid.SetColumn(closeButton, 1);
-            tabGrid.Children.Add(titleBlock);
-            tabGrid.Children.Add(closeButton);
-
-            var border = new Border
-            {
-                Padding = (Thickness)Application.Current.FindResource("SpacingTabItemPadding"),
-                Height = (double)Application.Current.FindResource("SizeTabItemHeight"),
-                Cursor = Cursors.Hand,
-                CornerRadius = (CornerRadius)Application.Current.FindResource("CornerRadiusTabItem"),
-                Margin = (Thickness)Application.Current.FindResource("SpacingTabItemMargin"),
-                Background = isActive
-                    ? (Brush)Application.Current.FindResource("BackgroundBrush")
-                    : Brushes.Transparent,
-                Child = tabGrid,
-                Tag = tabId,
-            };
-            border.MouseLeftButtonDown += (_, _) => _tabs.SetActiveTab(tabId);
-
-            void TitleHandler(TabStateRecord s)
-            {
-                if (s.TabId == tabId)
-                    titleBlock.Text = _module.FileProvider.GetDisplayTitle(s.ActivePath);
-            }
-            _titleHandlers[tabId] = TitleHandler;
-            store.StateChanged += TitleHandler;
-
-            panel.Children.Add(border);
+            panel.Children.Add(BuildTab(store, tabId, isActive));
         }
+    }
+
+    private static UIElement BuildSeparator() => new Border
+    {
+        Width = 1,
+        Background = (Brush)Application.Current.FindResource("SeparatorBrush"),
+        VerticalAlignment = VerticalAlignment.Stretch,
+        Margin = new Thickness(0, 7, 0, 7),
+    };
+
+    private UIElement BuildTab(TabStore store, Guid tabId, bool isActive)
+    {
+        var titleBlock = new TextBlock
+        {
+            Text = _module.FileProvider.GetDisplayTitle(store.State.ActivePath),
+            VerticalAlignment = VerticalAlignment.Center,
+            FontSize = (double)Application.Current.FindResource("FontTabTitleSize"),
+            Foreground = (Brush)Application.Current.FindResource(isActive ? "TextPrimaryBrush" : "TextSecondaryBrush"),
+            MinWidth = (double)Application.Current.FindResource("SizeTabTitleMinWidth"),
+            MaxWidth = (double)Application.Current.FindResource("SizeTabTitleMaxWidth"),
+            TextTrimming = TextTrimming.CharacterEllipsis,
+            Margin = new Thickness(0, 0, 8, 0),
+        };
+
+        double closeBtnSize = (double)Application.Current.FindResource("SizeTabCloseButtonSize");
+        var iconPath = IconProvider.GetFullPath("window-close.svg");
+
+        var closeButton = new Button
+        {
+            Width = closeBtnSize + 6,
+            Height = closeBtnSize + 6,
+            Background = Brushes.Transparent,
+            BorderThickness = new Thickness(0),
+            Foreground = (Brush)Application.Current.FindResource(isActive ? "TextPrimaryBrush" : "TextSecondaryBrush"),
+            Cursor = Cursors.Hand,
+            Focusable = false,
+            VerticalAlignment = VerticalAlignment.Center,
+            Tag = tabId,
+            Style = (Style)Application.Current.FindResource("SubtleButton"),
+            Content = new SvgViewbox
+            {
+                UriSource = new Uri(iconPath, UriKind.Absolute),
+                Width = closeBtnSize * 0.5,
+                Height = closeBtnSize * 0.5,
+            },
+        };
+
+        closeButton.Click += (_, _) => _tabs.CloseTab(tabId);
+
+        var contentGrid = new Grid();
+        contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        contentGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+        Grid.SetColumn(titleBlock, 0);
+        Grid.SetColumn(closeButton, 1);
+        contentGrid.Children.Add(titleBlock);
+        contentGrid.Children.Add(closeButton);
+
+        var tabGrid = new Grid();
+        tabGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(1, GridUnitType.Star) });
+        tabGrid.RowDefinitions.Add(new RowDefinition { Height = new GridLength(2) });
+        Grid.SetRow(contentGrid, 0);
+        tabGrid.Children.Add(contentGrid);
+
+        var indicator = new Border
+        {
+            Height = 2,
+            Background = (Brush)Application.Current.FindResource("AccentBrush"),
+            Visibility = isActive ? Visibility.Visible : Visibility.Collapsed,
+        };
+        Grid.SetRow(indicator, 1);
+        tabGrid.Children.Add(indicator);
+
+        var border = new Border
+        {
+            Padding = (Thickness)Application.Current.FindResource("SpacingTabItemPadding"),
+            Cursor = Cursors.Hand,
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Background = isActive
+                ? (Brush)Application.Current.FindResource("TabActiveBrush")
+                : Brushes.Transparent,
+            ToolTip = store.State.ActivePath,
+            Child = tabGrid,
+            Tag = tabId,
+        };
+
+        border.MouseLeftButtonDown += (_, e) =>
+        {
+            _tabs.SetActiveTab(tabId);
+            e.Handled = true;
+        };
+
+        border.PreviewMouseDown += (_, e) =>
+        {
+            if (e.ChangedButton == MouseButton.Middle && e.ButtonState == MouseButtonState.Pressed)
+            {
+                _tabs.CloseTab(tabId);
+                e.Handled = true;
+            }
+        };
+
+        border.MouseEnter += (_, _) =>
+        {
+            if (!isActive)
+                border.Background = (Brush)Application.Current.FindResource("TabHoverBrush");
+        };
+
+        border.MouseLeave += (_, _) =>
+        {
+            if (!isActive)
+                border.Background = Brushes.Transparent;
+        };
+
+        void TitleHandler(TabStateRecord s)
+        {
+            if (s.TabId == tabId)
+            {
+                titleBlock.Text = _module.FileProvider.GetDisplayTitle(s.ActivePath);
+                border.ToolTip = s.ActivePath;
+            }
+        }
+        _titleHandlers[tabId] = TitleHandler;
+        store.StateChanged += TitleHandler;
+
+        return border;
     }
 
     private void UnsubscribeAll()

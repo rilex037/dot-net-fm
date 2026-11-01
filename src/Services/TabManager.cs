@@ -2,10 +2,6 @@ using System.Collections.ObjectModel;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Manages a collection of <see cref="TabStore"/> instances and routes
-/// actions to the correct tab via <see cref="Guid"/> state IDs.
-/// </summary>
 public sealed class TabManager
 {
     private readonly string _userProfilePath;
@@ -14,19 +10,14 @@ public sealed class TabManager
     private readonly IIconProvider? _iconProvider;
     private readonly List<TabStore> _stores = new();
 
-    /// <summary>All open tabs in display order (for tab strip binding).</summary>
     public ReadOnlyCollection<TabStore> Tabs { get; }
 
-    /// <summary>The currently active (focused) tab, or null if no tabs are open.</summary>
     public TabStore? ActiveTab { get; private set; }
 
-    /// <summary>Fired when the active tab changes (tab selected, tab closed, etc.).</summary>
     public event Action<TabStore?>? ActiveTabChanged;
 
-    /// <summary>Fired when a tab is closed.</summary>
     public event Action<Guid>? TabClosed;
 
-    /// <summary>Fired when the last tab is closed.</summary>
     public event Action? AllTabsClosed;
 
     public TabManager(string userProfilePath, IModule? module)
@@ -38,30 +29,25 @@ public sealed class TabManager
         Tabs = new ReadOnlyCollection<TabStore>(_stores);
     }
 
-    // ── Tab lifecycle ─────────────────────────────────────────────
-
-    /// <summary>
-    /// Creates a new tab, optionally navigating to an initial path.
-    /// The new tab becomes the active tab.
-    /// </summary>
-    public TabStore AddTab(string? initialPath = null)
+    public TabStore AddTab(string? initialPath = null, string? sortKey = null, bool? sortAscending = null)
     {
         var watcher = _module?.CreateDirectoryWatcher() ?? new DummyDirectoryWatcher();
         var store = new TabStore(_userProfilePath, _fileProvider, _iconProvider, watcher);
         _stores.Add(store);
         SetActiveTab(store);
 
-        store.Dispatch(new TabAction.NavigateTo(
-            initialPath ?? _userProfilePath, PushToHistory: false));
+        if (!string.IsNullOrEmpty(sortKey))
+            store.Dispatch(new TabAction.SetSort(sortKey, sortAscending ?? true));
+
+        string targetPath = initialPath ?? "";
+        if (string.IsNullOrEmpty(targetPath) || !_fileProvider.PathExists(targetPath))
+            targetPath = _userProfilePath;
+
+        store.Dispatch(new TabAction.NavigateTo(targetPath, PushToHistory: false));
 
         return store;
     }
 
-    /// <summary>
-    /// Closes the tab identified by <paramref name="tabId"/>.
-    /// If it was the active tab, switches to an adjacent one.
-    /// Returns true if the tab was found and removed.
-    /// </summary>
     public bool CloseTab(Guid tabId)
     {
         int index = FindIndex(tabId);
@@ -89,22 +75,17 @@ public sealed class TabManager
             }
         }
 
-        // Fire event so MainWindow can synchronize the tab strip UI
         TabClosed?.Invoke(tabId);
 
         return true;
     }
 
-    // ── Active tab selection ───────────────────────────────────────
-
-    /// <summary>Sets the active tab by its state ID.</summary>
     public void SetActiveTab(Guid tabId)
     {
         var store = FindStore(tabId);
         if (store != null) SetActiveTab(store);
     }
 
-    /// <summary>Sets the active tab by index.</summary>
     public void SetActiveTab(int index)
     {
         if (index >= 0 && index < _stores.Count)
@@ -118,34 +99,20 @@ public sealed class TabManager
         ActiveTabChanged?.Invoke(store);
     }
 
-    // ── Action routing ────────────────────────────────────────────
-
-    /// <summary>
-    /// Dispatches an action to the tab identified by <paramref name="tabId"/>.
-    /// </summary>
     public void Dispatch(Guid tabId, TabAction action)
     {
         FindStore(tabId)?.Dispatch(action);
     }
 
-    /// <summary>
-    /// Dispatches an action to the currently active tab.
-    /// </summary>
     public void DispatchActive(TabAction action)
     {
         ActiveTab?.Dispatch(action);
     }
 
-    /// <summary>
-    /// Commits pending renames on the active tab before a navigation.
-    /// Delegates to <see cref="IFileView.CommitAnyRename"/>.
-    /// </summary>
     public void CommitActiveRename(IFileView view)
     {
         view.CommitAnyRename();
     }
-
-    // ── Lookup ────────────────────────────────────────────────────
 
     private TabStore? FindStore(Guid tabId)
     {
@@ -162,13 +129,9 @@ public sealed class TabManager
     }
 }
 
-/// <summary>
-/// No-op fallback implementations used when no module is loaded.
-/// Prevents null-reference issues while maintaining the interface contract.
-/// </summary>
 file sealed class DummyFileProvider : IFileProvider
 {
-    public Task<FileResult> GetItemsAsync(string path, int offset, int count, CancellationToken cancellationToken = default)
+    public Task<FileResult> GetItemsAsync(string path, int offset, int count, string sortKey, bool sortAscending, CancellationToken cancellationToken = default)
         => Task.FromResult(new FileResult { Items = [], TotalCount = 0, Offset = 0 });
     public string GetDisplayTitle(string path) => path;
     public string GetDisplayPath(string path) => path;
@@ -178,7 +141,7 @@ file sealed class DummyFileProvider : IFileProvider
     public string? GetFreeSpaceInfo(string path) => null;
 }
 
-#pragma warning disable CS0067 // DummyDirectoryWatcher.DirectoryChanged is never used — no-op fallback
+#pragma warning disable CS0067
 file sealed class DummyDirectoryWatcher : IDirectoryWatcher
 {
     public event Action? DirectoryChanged;

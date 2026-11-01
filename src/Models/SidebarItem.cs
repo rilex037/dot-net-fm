@@ -4,10 +4,6 @@ using System.Text.Json.Serialization;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Root configuration for sidebar icon mappings.
-/// Loaded from sidebar-config.json next to the executable.
-/// </summary>
 public class SidebarItem
 {
     public Dictionary<string, string> SidebarIcons { get; set; } = new();
@@ -17,6 +13,9 @@ public class SidebarItem
         private string _name = "";
         private string _iconPath = "";
         private string _path = "";
+        private bool _isHint;
+
+        public object? Tag { get; set; }
 
         public string Name
         {
@@ -35,6 +34,12 @@ public class SidebarItem
         {
             get => _path;
             set { _path = value; OnPropertyChanged(); }
+        }
+
+        public bool IsHint
+        {
+            get => _isHint;
+            set { _isHint = value; OnPropertyChanged(); }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

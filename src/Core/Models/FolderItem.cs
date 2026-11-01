@@ -4,11 +4,6 @@ using System.Windows.Media.Imaging;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Represents a single file or folder in the grid view.
-/// Icon loading is single-pass: first placeholder (sync), then thumbnail upgrade (bg).
-/// Memory is released via <see cref="Dispose"/> — call before discarding.
-/// </summary>
 public sealed class FolderItem : INotifyPropertyChanged, IDisposable
 {
     private string _name = "";
@@ -19,11 +14,13 @@ public sealed class FolderItem : INotifyPropertyChanged, IDisposable
     private bool _isEditing;
     private string _editName = "";
     private bool _isSelected;
+    private DateTime _sortDate;
+    private long _sortSize;
+    private string _sortType = "";
 
     private CancellationTokenSource? _iconCts;
     private bool _disposed;
 
-    /// <summary>Optional icon provider injected at creation time for async icon loading.</summary>
     public IIconProvider? IconProvider { get; set; }
 
     public string Name
@@ -74,9 +71,24 @@ public sealed class FolderItem : INotifyPropertyChanged, IDisposable
         set { _isSelected = value; OnPropertyChanged(); }
     }
 
-    /// <summary>
-    /// Cancels any in-flight icon load. Safe to call multiple times.
-    /// </summary>
+    public DateTime SortDate
+    {
+        get => _sortDate;
+        set { _sortDate = value; }
+    }
+
+    public long SortSize
+    {
+        get => _sortSize;
+        set { _sortSize = value; }
+    }
+
+    public string SortType
+    {
+        get => _sortType;
+        set { _sortType = value; }
+    }
+
     public void CancelIconLoad()
     {
         _iconCts?.Cancel();
@@ -84,10 +96,6 @@ public sealed class FolderItem : INotifyPropertyChanged, IDisposable
         _iconCts = null;
     }
 
-    /// <summary>
-    /// Loads icon at the requested pixel size in single pass on bg thread.
-    /// Uses the injected <see cref="IconProvider"/>. If no provider is set, icon loading is skipped.
-    /// </summary>
     public async void LoadIconAsync(CancellationToken navigationToken = default, int requestedSize = 256)
     {
         if (_disposed || navigationToken.IsCancellationRequested || IconProvider == null) return;
@@ -114,9 +122,6 @@ public sealed class FolderItem : INotifyPropertyChanged, IDisposable
         }
     }
 
-    /// <summary>
-    /// Releases the <see cref="NativeIcon"/> and cancels pending loads.
-    /// </summary>
     public void Dispose()
     {
         if (_disposed) return;

@@ -3,7 +3,6 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
 
     <UserControl.Resources>
-        <!-- Nav button style with hover -->
         <Style x:Key="NavButtonStyle" TargetType="Button">
             <Setter Property="Background" Value="Transparent"/>
             <Setter Property="BorderThickness" Value="0"/>
@@ -13,7 +12,8 @@
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Bd" Background="{TemplateBinding Background}"
                                 BorderBrush="{TemplateBinding BorderBrush}"
-                                BorderThickness="{TemplateBinding BorderThickness}">
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="4">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
@@ -28,43 +28,21 @@
                 </Setter.Value>
             </Setter>
         </Style>
-
-        <!-- View mode button style with hover -->
-        <Style x:Key="ViewModeButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Focusable" Value="False"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border x:Name="Bd" Background="{TemplateBinding Background}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                        <ControlTemplate.Triggers>
-                            <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource HoverNavButtonBrush}"/>
-                            </Trigger>
-                        </ControlTemplate.Triggers>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
     </UserControl.Resources>
 
-    <Border Background="{StaticResource ToolbarBrush}" Padding="0,6,0,12" Margin="0,0,0,0">
+    <Border Background="{StaticResource ToolbarBrush}" Padding="0,6,0,10" Margin="0,0,0,0">
         <Grid>
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Back / Forward / Up -->
             <StackPanel Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center" Margin="{StaticResource SpacingNavGroupLeftMargin}">
                 <Button x:Name="BackButton"
                         Width="{StaticResource SizeNavButtonSize}" Height="{StaticResource SizeNavButtonSize}"
                         Margin="{StaticResource SpacingToolbarButtonMargin}"
                         Click="BackButton_Click"
+                        ToolTip="Back (Alt+Left)"
                         Style="{StaticResource NavButtonStyle}">
                     <Viewbox Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform">
                         <Canvas Width="12" Height="12">
@@ -76,6 +54,7 @@
                         Width="{StaticResource SizeNavButtonSize}" Height="{StaticResource SizeNavButtonSize}"
                         Margin="{StaticResource SpacingToolbarButtonMargin}"
                         Click="ForwardButton_Click"
+                        ToolTip="Forward (Alt+Right)"
                         Style="{StaticResource NavButtonStyle}">
                     <Viewbox Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform">
                         <Canvas Width="12" Height="12">
@@ -87,6 +66,7 @@
                         Width="{StaticResource SizeNavButtonSize}" Height="{StaticResource SizeNavButtonSize}"
                         Margin="{StaticResource SpacingToolbarButtonMargin}"
                         Click="UpButton_Click"
+                        ToolTip="Up (Backspace)"
                         Style="{StaticResource NavButtonStyle}">
                     <Viewbox Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform">
                         <Canvas Width="12" Height="12">
@@ -96,7 +76,6 @@
                 </Button>
             </StackPanel>
 
-            <!-- Address bar (breadcrumb) -->
             <Border Grid.Column="1" x:Name="AddressBarBorder" Background="{StaticResource BreadcrumbBrush}"
                     Height="{StaticResource SizeAddressBarHeight}" CornerRadius="{StaticResource CornerRadiusMedium}"
                     VerticalAlignment="Center" Margin="{StaticResource SpacingAddressBarMargin}"
@@ -108,36 +87,6 @@
                          GotFocus="AddressBarTextBox_GotFocus"
                          LostFocus="AddressBarTextBox_LostFocus"/>
             </Border>
-
-            <!-- View mode buttons -->
-            <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center"
-                        Margin="{StaticResource SpacingViewModeGroupMargin}">
-                <!-- List detail view -->
-                <Button Width="{StaticResource SizeSmallButtonSize}" Height="{StaticResource SizeSmallButtonHeight}"
-                        Margin="{StaticResource SpacingToolbarButtonPadding}" Cursor="Hand"
-                        Style="{StaticResource ViewModeButtonStyle}">
-                    <Viewbox Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform">
-                        <Canvas Width="14" Height="14">
-                            <Rectangle Canvas.Left="0" Canvas.Top="0" Width="10" Height="2" Fill="{StaticResource IconSecondaryBrush}"/>
-                            <Rectangle Canvas.Left="0" Canvas.Top="5" Width="10" Height="2" Fill="{StaticResource IconSecondaryBrush}"/>
-                            <Rectangle Canvas.Left="0" Canvas.Top="10" Width="10" Height="2" Fill="{StaticResource IconSecondaryBrush}"/>
-                        </Canvas>
-                    </Viewbox>
-                </Button>
-                <!-- Grid view -->
-                <Button Width="{StaticResource SizeSmallButtonSize}" Height="{StaticResource SizeSmallButtonHeight}"
-                        Margin="{StaticResource SpacingToolbarButtonPadding}" Cursor="Hand"
-                        Style="{StaticResource ViewModeButtonStyle}">
-                    <Viewbox Width="{StaticResource SizeIconSize}" Height="{StaticResource SizeIconSize}" Stretch="Uniform">
-                        <Canvas Width="12" Height="12">
-                            <Rectangle Canvas.Left="0" Canvas.Top="0" Width="4" Height="4" Fill="{StaticResource IconSecondaryBrush}"/>
-                            <Rectangle Canvas.Left="6" Canvas.Top="0" Width="4" Height="4" Fill="{StaticResource IconSecondaryBrush}"/>
-                            <Rectangle Canvas.Left="0" Canvas.Top="6" Width="4" Height="4" Fill="{StaticResource IconSecondaryBrush}"/>
-                            <Rectangle Canvas.Left="6" Canvas.Top="6" Width="4" Height="4" Fill="{StaticResource IconSecondaryBrush}"/>
-                        </Canvas>
-                    </Viewbox>
-                </Button>
-            </StackPanel>
         </Grid>
     </Border>
 </UserControl>

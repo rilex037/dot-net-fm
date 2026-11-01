@@ -6,10 +6,6 @@ using System.Windows.Media;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Navigation toolbar with back/forward/up buttons and address bar.
-/// Shows the full absolute path and supports typing a new path to navigate on Enter.
-/// </summary>
 public partial class NavigationToolbar : UserControl
 {
     private static readonly SolidColorBrush AccentBrush = new(Color.FromRgb(0xE9, 0x1E, 0x63));
@@ -19,6 +15,7 @@ public partial class NavigationToolbar : UserControl
     public event Action? ForwardRequested;
     public event Action? UpRequested;
     public event Action<string>? NavigateToRequested;
+    public event Action? NavigateCancelled;
 
     public NavigationToolbar()
     {
@@ -26,18 +23,18 @@ public partial class NavigationToolbar : UserControl
         AddressBarTextBox.PreviewKeyDown += AddressBarTextBox_PreviewKeyDown;
     }
 
-    /// <summary>
-    /// Updates the address bar with the full path.
-    /// </summary>
     public void SetPath(string fullPath)
     {
         if (AddressBarTextBox != null)
             AddressBarTextBox.Text = fullPath;
     }
 
-    /// <summary>
-    /// Updates the enabled state of navigation buttons.
-    /// </summary>
+    public void FocusAddressBar()
+    {
+        AddressBarTextBox.Focus();
+        AddressBarTextBox.SelectAll();
+    }
+
     public void UpdateNavStates(bool canGoBack, bool canGoForward, bool canGoUp)
     {
         BackButton.IsEnabled = canGoBack;
@@ -68,6 +65,11 @@ public partial class NavigationToolbar : UserControl
             string text = AddressBarTextBox.Text.Trim();
             if (!string.IsNullOrEmpty(text))
                 NavigateToRequested?.Invoke(text);
+        }
+        else if (e.Key == Key.Escape)
+        {
+            e.Handled = true;
+            NavigateCancelled?.Invoke();
         }
     }
 

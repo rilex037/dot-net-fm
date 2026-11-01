@@ -3,10 +3,6 @@ using System.Text.Json;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Loads, saves, and resolves sidebar configuration from a JSON file.
-/// Supports %ENV_VAR% path resolution and special folder tokens.
-/// </summary>
 public static class SidebarService
 {
     private const string ConfigFileName = "sidebar-config.json";
@@ -19,10 +15,6 @@ public static class SidebarService
     private static string ConfigPath =>
         Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config", ConfigFileName);
 
-    /// <summary>
-    /// Loads config from the JSON file on disk.
-    /// Returns an empty config if the file is missing or corrupted.
-    /// </summary>
     public static SidebarItem Load()
     {
         if (File.Exists(ConfigPath))
@@ -36,16 +28,12 @@ public static class SidebarService
             }
             catch
             {
-                // Corrupted file — return empty
             }
         }
 
         return new SidebarItem();
     }
 
-    /// <summary>
-    /// Persists the current config to disk.
-    /// </summary>
     public static void Save(SidebarItem config)
     {
         string json = JsonSerializer.Serialize(config, JsonOptions);

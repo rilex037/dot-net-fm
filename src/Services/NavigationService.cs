@@ -2,11 +2,6 @@ using System.Windows;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Handles all navigation state and logic: NavigateTo, LoadDirectory, back/forward/up stacks.
-/// Delegates file listing to <see cref="IFileProvider"/> — no direct filesystem calls.
-/// Icon loading is orchestrated per-item by FolderItem.LoadIconAsync(), not by this service.
-/// </summary>
 public class NavigationService
 {
     private readonly string _userProfilePath;
@@ -30,10 +25,6 @@ public class NavigationService
         _iconProvider = iconProvider;
     }
 
-    /// <summary>
-    /// Navigates to a directory, optionally pushing the current path onto the back stack.
-    /// Returns true if the path was valid and navigation started, false otherwise.
-    /// </summary>
     public bool NavigateTo(string targetPath, bool pushToHistory = true)
     {
         if (string.IsNullOrEmpty(targetPath)) return false;
@@ -51,24 +42,19 @@ public class NavigationService
         return true;
     }
 
-    /// <summary>
-    /// Loads directory contents via <see cref="IFileProvider"/>. Items are returned with
-    /// the icon provider set. The caller populates the UI and triggers per-item icon loads.
-    /// </summary>
-    public async Task<List<FolderItem>> LoadDirectoryItemsAsync(string targetPath)
+    public async Task<List<FolderItem>> LoadDirectoryItemsAsync(string targetPath, string sortKey, bool sortAscending)
     {
         TitleChanged?.Invoke(_fileProvider.GetDisplayTitle(targetPath));
 
         var items = new List<FolderItem>();
         try
         {
-            var result = await _fileProvider.GetItemsAsync(targetPath, 0, int.MaxValue);
+            var result = await _fileProvider.GetItemsAsync(targetPath, 0, int.MaxValue, sortKey, sortAscending);
 
             foreach (var item in result.Items)
             {
                 item.IconProvider = _iconProvider;
 
-                // Sync icon for immediate display (drives, folders)
                 if (_iconProvider != null && item.NativeIcon == null)
                     item.NativeIcon = _iconProvider.GetIconForFile(item.FullPath);
 
@@ -82,10 +68,20 @@ public class NavigationService
 
             StatusChanged?.Invoke(status);
         }
+        catch (OperationCanceledException) { }
+        catch (UnauthorizedAccessException)
+        {
+            StatusChanged?.Invoke("Access denied");
+            CustomDialog.Show("Access Denied",
+                $"Could not access \u201c{targetPath}\u201d.\nYou may not have permission to open this location.",
+                DialogIcon.Error);
+        }
         catch (Exception ex)
         {
-            MessageBox.Show($"Could not access folder: {ex.Message}", "Access Denied",
-                MessageBoxButton.OK, MessageBoxImage.Error);
+            StatusChanged?.Invoke("Could not load this location");
+            CustomDialog.Show("Loading Error",
+                $"Could not load \u201c{targetPath}\u201d:\n{ex.Message}",
+                DialogIcon.Error);
         }
 
         return items;
@@ -115,9 +111,7 @@ public class NavigationService
     {
         var parent = _fileProvider.GetParentPath(_currentPath);
         if (parent == null) return false;
-        NavigateTo(parent);
-        NavStateChanged?.Invoke();
-        return true;
+        return NavigateTo(parent);
     }
 
     public bool CanGoBack    => _backStack.Count > 0;

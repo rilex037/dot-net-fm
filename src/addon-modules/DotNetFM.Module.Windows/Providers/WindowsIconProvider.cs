@@ -2,10 +2,6 @@ using System.Windows.Media.Imaging;
 
 namespace DotNetFM;
 
-/// <summary>
-/// IIconProvider implementation using Windows Shell COM (IShellItemImageFactory)
-/// and SHGetFileInfo for native file/folder icons.
-/// </summary>
 public sealed class WindowsIconProvider : IIconProvider
 {
     public Task<BitmapSource?> GetThumbnailAsync(string path, int requestedSize, CancellationToken cancellationToken = default)

@@ -1,63 +1,99 @@
 using System.Collections.Specialized;
+using System.IO;
 using System.Windows;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Abstraction over the OS clipboard for file drop lists.
-/// Tracks whether the last clipboard operation was cut (move) or copy.
-/// No UI dependencies beyond the standard WPF System.Windows.Clipboard.
-/// </summary>
 public sealed class ClipboardService
 {
-    /// <summary>Whether the last clipboard push was a cut operation.</summary>
-    public bool IsCut { get; private set; }
+    private const string PreferredDropEffectFormat = "Preferred DropEffect";
+    private const int DropeffectCopy = 1;
+    private const int DropeffectMove = 2;
 
-    /// <summary>
-    /// Copies the specified file/directory paths to the clipboard as a file drop list,
-    /// marking the operation as a copy.
-    /// </summary>
-    public void Copy(IReadOnlyList<string> paths)
+    public bool IsCut => ReadPreferredDropEffect() == DropeffectMove;
+
+    public void Copy(IReadOnlyList<string> paths) => SetFileDropList(paths, DropeffectCopy);
+
+    public void Cut(IReadOnlyList<string> paths) => SetFileDropList(paths, DropeffectMove);
+
+    public void Clear()
     {
-        if (paths.Count == 0) return;
-        IsCut = false;
-        Clipboard.SetFileDropList(CreateStringCollection(paths));
+        try { Clipboard.Clear(); }
+        catch { }
     }
 
-    /// <summary>
-    /// Copies the specified file/directory paths to the clipboard as a file drop list,
-    /// marking the operation as a cut.
-    /// </summary>
-    public void Cut(IReadOnlyList<string> paths)
-    {
-        if (paths.Count == 0) return;
-        IsCut = true;
-        Clipboard.SetFileDropList(CreateStringCollection(paths));
-    }
-
-    /// <summary>
-    /// Retrieves the file drop list from the clipboard, or null if none is present.
-    /// </summary>
     public IReadOnlyList<string>? TryGetFileDropList()
     {
-        if (!Clipboard.ContainsFileDropList()) return null;
+        try
+        {
+            if (!Clipboard.ContainsFileDropList()) return null;
 
-        var raw = Clipboard.GetFileDropList();
-        if (raw.Count == 0) return null;
+            var raw = Clipboard.GetFileDropList();
+            if (raw.Count == 0) return null;
 
-        var result = new string[raw.Count];
-        raw.CopyTo(result, 0);
-        return result;
+            var result = new string[raw.Count];
+            raw.CopyTo(result, 0);
+            return result;
+        }
+        catch
+        {
+            return null;
+        }
     }
 
-    /// <summary>Resets the cut flag after a paste has been performed.</summary>
-    public void ResetCutFlag() => IsCut = false;
-
-    private static StringCollection CreateStringCollection(IReadOnlyList<string> paths)
+    private static void SetFileDropList(IReadOnlyList<string> paths, int dropEffect)
     {
-        var collection = new StringCollection();
-        foreach (var p in paths)
-            collection.Add(p);
-        return collection;
+        if (paths.Count == 0) return;
+
+        try
+        {
+            var data = new DataObject();
+            var collection = new StringCollection();
+            foreach (var path in paths)
+                collection.Add(path);
+            data.SetFileDropList(collection);
+
+            var effectStream = new MemoryStream();
+            effectStream.WriteByte((byte)(dropEffect & 0xFF));
+            effectStream.WriteByte((byte)((dropEffect >> 8) & 0xFF));
+            effectStream.WriteByte((byte)((dropEffect >> 16) & 0xFF));
+            effectStream.WriteByte((byte)((dropEffect >> 24) & 0xFF));
+            effectStream.Position = 0;
+            data.SetData(PreferredDropEffectFormat, effectStream);
+
+            Clipboard.SetDataObject(data, true);
+        }
+        catch
+        {
+        }
+    }
+
+    private static int ReadPreferredDropEffect()
+    {
+        try
+        {
+            if (!Clipboard.ContainsData(PreferredDropEffectFormat)) return DropeffectCopy;
+            return ReadEffect(Clipboard.GetData(PreferredDropEffectFormat));
+        }
+        catch
+        {
+            return DropeffectCopy;
+        }
+    }
+
+    private static int ReadEffect(object? data)
+    {
+        if (data is MemoryStream stream)
+        {
+            if (stream.CanSeek) stream.Position = 0;
+            var buffer = new byte[4];
+            int read = stream.Read(buffer, 0, 4);
+            if (read == 4) return BitConverter.ToInt32(buffer, 0);
+        }
+
+        if (data is byte[] bytes && bytes.Length >= 4)
+            return BitConverter.ToInt32(bytes, 0);
+
+        return DropeffectCopy;
     }
 }

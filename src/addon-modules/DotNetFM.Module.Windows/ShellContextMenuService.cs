@@ -7,15 +7,9 @@ using System.Windows.Interop;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Shows the native Windows shell context menu (Explorer right-click menu)
-/// for one or more selected files/folders. Supports mixed selections.
-/// </summary>
 public static class ShellContextMenuService
 {
     private const uint CMD_FIRST = 1;
-
-    // ── Win32 constants ──────────────────────────────────────────────────────
 
     private const uint TPM_LEFTALIGN    = 0x0000;
     private const uint TPM_RETURNCMD    = 0x0100;
@@ -25,14 +19,9 @@ public static class ShellContextMenuService
     private const uint CMIC_MASK_UNICODE       = 0x4000;
     private const uint CMIC_MASK_PTINVOKE      = 0x20000000;
     private const uint CMF_NORMAL              = 0x00000000;
-    private const uint CMF_EXPLORE             = 0x00000004;
     private const uint CMF_EXTENDEDVERBS       = 0x00000100;
-    private const uint CMF_CANRENAME           = 0x00000010;
-    private const uint CMF_NODEFAULT           = 0x00000020;
 
     private const uint SW_SHOWNORMAL = 1;
-
-    // ── P/Invoke ─────────────────────────────────────────────────────────────
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern int SHParseDisplayName(
@@ -44,14 +33,6 @@ public static class ShellContextMenuService
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode, SetLastError = true)]
     private static extern int SHGetDesktopFolder(out IShellFolder ppshf);
-
-    [DllImport("shell32.dll")]
-    private static extern int SHBindToObject(
-        IntPtr pidlRoot,
-        IntPtr pidl,
-        IntPtr pbc,
-        ref Guid riid,
-        out IntPtr ppv);
 
     [DllImport("shell32.dll")]
     private static extern void ILFree(IntPtr pidl);
@@ -77,7 +58,8 @@ public static class ShellContextMenuService
     [DllImport("user32.dll")]
     private static extern IntPtr SetForegroundWindow(IntPtr hWnd);
 
-    // ── COM interfaces ───────────────────────────────────────────────────────
+    [DllImport("user32.dll")]
+    private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
 
     [ComImport]
     [Guid("000214E6-0000-0000-C000-000000000046")]
@@ -167,8 +149,6 @@ public static class ShellContextMenuService
         int HandleMenuMsg2(uint uMsg, IntPtr wParam, IntPtr lParam, ref IntPtr pResult);
     }
 
-    // ── Structures ───────────────────────────────────────────────────────────
-
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
     private struct CMINVOKECOMMANDINFOEX
     {
@@ -218,43 +198,25 @@ public static class ShellContextMenuService
         public RECT rcExclude;
     }
 
-    // ── Public API ───────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Shows the native Windows shell context menu for a set of selected items.
-    /// All items must reside in the same parent directory.
-    /// </summary>
     public static void Show(Window ownerWindow, Point screenPoint, IReadOnlyList<string> selectedPaths)
     {
         if (selectedPaths == null || selectedPaths.Count == 0) return;
 
-        // All items must be in the same directory
         string? parentDir = GetCommonParentDirectory(selectedPaths);
         if (parentDir == null) return;
 
-        IntPtr hwnd = IntPtr.Zero;
-        if (ownerWindow != null)
-        {
-            var hwndSource = PresentationSource.FromVisual(ownerWindow) as HwndSource;
-            hwnd = hwndSource?.Handle ?? IntPtr.Zero;
-        }
+        IntPtr hwnd = ResolveHwnd(ownerWindow);
 
-        if (hwnd == IntPtr.Zero)
-            hwnd = GetForegroundWindow();
-
-        // Get the desktop folder
         int hr = SHGetDesktopFolder(out var desktopFolder);
         if (hr != 0) return;
 
         try
         {
-            // Parse the parent directory to get its PIDL
             hr = SHParseDisplayName(parentDir, IntPtr.Zero, out IntPtr parentPidl, 0, out _);
             if (hr != 0 || parentPidl == IntPtr.Zero) return;
 
             try
             {
-                // Bind to the parent folder
                 Guid iidShellFolder = new("000214E6-0000-0000-C000-000000000046");
                 desktopFolder.BindToObject(parentPidl, IntPtr.Zero, ref iidShellFolder, out IntPtr parentFolderPtr);
                 if (parentFolderPtr == IntPtr.Zero) return;
@@ -262,7 +224,6 @@ public static class ShellContextMenuService
                 var parentFolder = (IShellFolder)Marshal.GetObjectForIUnknown(parentFolderPtr);
                 try
                 {
-                    // Get PIDLs for all selected items (relative to parent folder)
                     var itemPidls = new IntPtr[selectedPaths.Count];
                     int validCount = 0;
 
@@ -280,7 +241,6 @@ public static class ShellContextMenuService
                         }
                         catch
                         {
-                            // Skip items that fail to parse
                         }
                     }
 
@@ -288,13 +248,11 @@ public static class ShellContextMenuService
 
                     try
                     {
-                        // Resize if some items failed
                         if (validCount < selectedPaths.Count)
                         {
                             Array.Resize(ref itemPidls, validCount);
                         }
 
-                        // Get IContextMenu for all items
                         Guid iidContextMenu = new("000214E4-0000-0000-C000-000000000046");
                         parentFolder.GetUIObjectOf(IntPtr.Zero, (uint)validCount, itemPidls, ref iidContextMenu, IntPtr.Zero, out object contextMenuObj);
 
@@ -336,19 +294,92 @@ public static class ShellContextMenuService
         }
     }
 
-    // ── Menu display & command handling ──────────────────────────────────────
+    public static bool ShowBackground(Window ownerWindow, Point screenPoint, string directoryPath)
+    {
+        if (string.IsNullOrEmpty(directoryPath)) return false;
+
+        IntPtr hwnd = ResolveHwnd(ownerWindow);
+
+        int hr = SHGetDesktopFolder(out var desktopFolder);
+        if (hr != 0) return false;
+
+        try
+        {
+            hr = SHParseDisplayName(directoryPath, IntPtr.Zero, out IntPtr dirPidl, 0, out _);
+            if (hr != 0 || dirPidl == IntPtr.Zero) return false;
+
+            try
+            {
+                Guid iidShellFolder = new("000214E6-0000-0000-C000-000000000046");
+                desktopFolder.BindToObject(dirPidl, IntPtr.Zero, ref iidShellFolder, out IntPtr folderPtr);
+                if (folderPtr == IntPtr.Zero) return false;
+
+                var folder = (IShellFolder)Marshal.GetObjectForIUnknown(folderPtr);
+                try
+                {
+                    Guid iidContextMenu = new("000214E4-0000-0000-C000-000000000046");
+                    folder.CreateViewObject(hwnd, ref iidContextMenu, out IntPtr contextMenuPtr);
+                    if (contextMenuPtr == IntPtr.Zero) return false;
+
+                    var contextMenu = (IContextMenu)Marshal.GetObjectForIUnknown(contextMenuPtr);
+                    try
+                    {
+                        ShowMenu(hwnd, screenPoint, contextMenu);
+                        return true;
+                    }
+                    finally
+                    {
+                        Marshal.ReleaseComObject(contextMenu);
+                        Marshal.Release(contextMenuPtr);
+                    }
+                }
+                finally
+                {
+                    Marshal.ReleaseComObject(folder);
+                    Marshal.Release(folderPtr);
+                }
+            }
+            finally
+            {
+                ILFree(dirPidl);
+            }
+        }
+        catch
+        {
+            return false;
+        }
+        finally
+        {
+            Marshal.ReleaseComObject(desktopFolder);
+        }
+    }
+
+    private static IntPtr ResolveHwnd(Window ownerWindow)
+    {
+        IntPtr hwnd = IntPtr.Zero;
+        if (ownerWindow != null)
+        {
+            var hwndSource = PresentationSource.FromVisual(ownerWindow) as HwndSource;
+            hwnd = hwndSource?.Handle ?? IntPtr.Zero;
+        }
+
+        if (hwnd == IntPtr.Zero)
+            hwnd = GetForegroundWindow();
+
+        return hwnd;
+    }
 
     private static void ShowMenu(IntPtr hwnd, Point screenPoint, IContextMenu contextMenu)
     {
         IntPtr hMenu = CreatePopupMenu();
         if (hMenu == IntPtr.Zero) return;
 
+        var messageHelper = new ContextMenuMessageHelper(hwnd, contextMenu);
+
         try
         {
-            // Let the shell populate the menu
             contextMenu.QueryContextMenu(hMenu, 0, CMD_FIRST, 0x7FFF, CMF_NORMAL | CMF_EXTENDEDVERBS);
 
-            // Set foreground so the menu closes properly
             SetForegroundWindow(hwnd);
 
             var tpmParams = new TPMPARAMS
@@ -358,84 +389,70 @@ public static class ShellContextMenuService
             };
 
             IntPtr pTpmParams = Marshal.AllocHGlobal(Marshal.SizeOf(tpmParams));
-            Marshal.StructureToPtr(tpmParams, pTpmParams, false);
-
-            // Show the menu and get the selected command ID
-            uint cmd = TrackPopupMenuEx(
-                hMenu,
-                TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD,
-                (int)screenPoint.X,
-                (int)screenPoint.Y,
-                hwnd,
-                pTpmParams);
-
-            Marshal.FreeHGlobal(pTpmParams);
-
-            if (cmd >= CMD_FIRST)
+            try
             {
-                // Handle owner-draw messages that some shell extensions need (e.g. 7-Zip)
-                var messageHelper = new ContextMenuMessageHelper(hwnd, contextMenu);
+                Marshal.StructureToPtr(tpmParams, pTpmParams, false);
 
-                // Invoke the selected command
-                uint verbIndex = cmd - CMD_FIRST;
+                uint cmd = TrackPopupMenuEx(
+                    hMenu,
+                    TPM_LEFTALIGN | TPM_RIGHTBUTTON | TPM_RETURNCMD,
+                    (int)screenPoint.X,
+                    (int)screenPoint.Y,
+                    hwnd,
+                    pTpmParams);
 
-                var invokeInfo = new CMINVOKECOMMANDINFOEX
+                if (cmd >= CMD_FIRST)
                 {
-                    cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFOEX>(),
-                    fMask = CMIC_MASK_UNICODE | CMIC_MASK_PTINVOKE,
-                    hwnd = hwnd,
-                    lpVerb = (IntPtr)verbIndex,
-                    lpParameters = null,
-                    lpDirectory = null,
-                    nShow = (int)SW_SHOWNORMAL,
-                    dwHotKey = 0,
-                    hIcon = IntPtr.Zero,
-                    lpTitle = null,
-                    lpVerbW = (IntPtr)verbIndex,
-                    lpParametersW = null,
-                    lpDirectoryW = null,
-                    lpTitleW = null,
-                    ptInvoke = new POINT((int)screenPoint.X, (int)screenPoint.Y)
-                };
+                    uint verbIndex = cmd - CMD_FIRST;
 
-                IntPtr pInvokeInfo = Marshal.AllocHGlobal(invokeInfo.cbSize);
-                try
-                {
-                    Marshal.StructureToPtr(invokeInfo, pInvokeInfo, false);
-                    contextMenu.InvokeCommand(pInvokeInfo);
+                    var invokeInfo = new CMINVOKECOMMANDINFOEX
+                    {
+                        cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFOEX>(),
+                        fMask = CMIC_MASK_UNICODE | CMIC_MASK_PTINVOKE,
+                        hwnd = hwnd,
+                        lpVerb = (IntPtr)verbIndex,
+                        lpParameters = null,
+                        lpDirectory = null,
+                        nShow = (int)SW_SHOWNORMAL,
+                        dwHotKey = 0,
+                        hIcon = IntPtr.Zero,
+                        lpTitle = null,
+                        lpVerbW = (IntPtr)verbIndex,
+                        lpParametersW = null,
+                        lpDirectoryW = null,
+                        lpTitleW = null,
+                        ptInvoke = new POINT((int)screenPoint.X, (int)screenPoint.Y)
+                    };
+
+                    IntPtr pInvokeInfo = Marshal.AllocHGlobal(invokeInfo.cbSize);
+                    try
+                    {
+                        Marshal.StructureToPtr(invokeInfo, pInvokeInfo, false);
+                        contextMenu.InvokeCommand(pInvokeInfo);
+                    }
+                    finally
+                    {
+                        Marshal.FreeHGlobal(pInvokeInfo);
+                    }
                 }
-                finally
-                {
-                    Marshal.FreeHGlobal(pInvokeInfo);
-                }
+            }
+            finally
+            {
+                Marshal.FreeHGlobal(pTpmParams);
             }
         }
         catch
         {
-            // Silently suppress — some shell extensions throw on missing verbs
         }
         finally
         {
+            messageHelper.Dispose();
             DestroyMenu(hMenu);
-
-            // Send a harmless message to make the menu bar repaint properly
-            PostMessage(hwnd, 0x001E, IntPtr.Zero, IntPtr.Zero); // WM_CANCELMODE
+            PostMessage(hwnd, 0x001E, IntPtr.Zero, IntPtr.Zero);
         }
     }
 
-    [DllImport("user32.dll")]
-    private static extern bool PostMessage(IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
-
-    // ── Message pump for owner-draw context menu items ───────────────────────
-    //
-    // Some shell extensions (7-Zip, WinRAR) use owner-draw menu items that
-    // require a message pump. We subclass the window temporarily to forward
-    // WM_MEASUREITEM / WM_DRAWITEM / WM_INITMENUPOPUP to the IContextMenu.
-    //
-    // In WPF, HwndSource can hook WndProc; we set up a hook before showing
-    // the menu and remove it after.
-
-    private class ContextMenuMessageHelper
+    private sealed class ContextMenuMessageHelper : IDisposable
     {
         private readonly IntPtr _hwnd;
         private readonly IContextMenu _contextMenu;
@@ -482,22 +499,17 @@ public static class ShellContextMenuService
             return IntPtr.Zero;
         }
 
-        ~ContextMenuMessageHelper()
+        public void Dispose()
         {
-            if (_hwnd != IntPtr.Zero && _hook != null)
+            if (_hook != null)
             {
                 var source = HwndSource.FromHwnd(_hwnd);
                 source?.RemoveHook(_hook);
+                _hook = null;
             }
         }
     }
 
-    // ── Helpers ──────────────────────────────────────────────────────────────
-
-    /// <summary>
-    /// Gets the common parent directory for all selected paths.
-    /// Returns null if they don't share a common parent.
-    /// </summary>
     private static string? GetCommonParentDirectory(IReadOnlyList<string> paths)
     {
         if (paths.Count == 0) return null;
@@ -509,7 +521,7 @@ public static class ShellContextMenuService
         {
             string? otherParent = Path.GetDirectoryName(paths[i]);
             if (!string.Equals(parent, otherParent, StringComparison.OrdinalIgnoreCase))
-                return null; // Shouldn't happen in our UI, but be safe
+                return null;
         }
 
         return parent;

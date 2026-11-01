@@ -1,0 +1,62 @@
+<Window x:Class="DotNetFM.ArchiveProgressDialog"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        WindowStyle="None"
+        ResizeMode="NoResize"
+        Width="460"
+        SizeToContent="Height"
+        WindowStartupLocation="CenterOwner"
+        Background="Transparent"
+        Foreground="{StaticResource TextPrimaryBrush}"
+        FontFamily="{StaticResource AppFont}"
+        UseLayoutRounding="True"
+        SnapsToDevicePixels="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType"
+        ShowInTaskbar="False">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome GlassFrameThickness="0"
+                      CornerRadius="{StaticResource CornerRadiusLarge}"
+                      ResizeBorderThickness="0"
+                      CaptionHeight="0"
+                      UseAeroCaptionButtons="False"/>
+    </WindowChrome.WindowChrome>
+
+    <Border Background="{StaticResource ToolbarBrush}"
+            CornerRadius="{StaticResource CornerRadiusLarge}"
+            Padding="24"
+            MouseLeftButtonDown="Root_MouseLeftButtonDown">
+        <StackPanel>
+            <TextBlock x:Name="TitleText"
+                       FontSize="{StaticResource FontSectionHeaderSize}"
+                       FontWeight="Bold"
+                       Foreground="{StaticResource TextPrimaryBrush}"
+                       TextTrimming="CharacterEllipsis"
+                       Margin="0,0,0,10"/>
+
+            <TextBlock x:Name="StatusText"
+                       FontSize="{StaticResource FontFileDetailsSize}"
+                       Foreground="{StaticResource TextSecondaryBrush}"
+                       TextTrimming="CharacterEllipsis"
+                       Margin="0,0,0,12"/>
+
+            <ProgressBar x:Name="Bar"
+                         Height="6"
+                         BorderThickness="0"
+                         Background="{StaticResource InputBackground}"
+                         Foreground="{StaticResource AccentBrush}"
+                         Minimum="0"
+                         Maximum="100"
+                         IsIndeterminate="True"/>
+
+            <Button x:Name="CancelButton"
+                    Content="Cancel"
+                    MinWidth="96" Height="30"
+                    Margin="0,16,0,0"
+                    HorizontalAlignment="Right"
+                    Style="{StaticResource DialogButton}"
+                    Click="CancelButton_Click"/>
+        </StackPanel>
+    </Border>
+</Window>

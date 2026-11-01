@@ -1,32 +1,29 @@
-using System;
-using System.Linq;
+using System.IO;
+using System.IO.Pipes;
+using System.Text;
+using System.Threading;
 using System.Windows;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Interaction logic for App.xaml
-/// </summary>
 public partial class App : Application
 {
-    /// <summary>
-    /// Global module registry — discovers and holds all registered modules.
-    /// Initialized once at startup before any windows are created.
-    /// </summary>
+    private const string MutexName = @"Local\DotNetFM.SingleInstance";
+    private const string PipeName = "DotNetFM.SingleInstance";
+
     public static ModuleRegistry Modules { get; } = new();
+
+    private static Mutex? _instanceMutex;
+    private static bool _ownsInstanceMutex;
 
     static App()
     {
-        // Scan output directory for DotNetFM.Module.*.dll and register them.
-        // Modules communicate via Core interfaces only — no source-level coupling.
         Modules.ScanAndRegisterAll();
     }
 
     public App()
     {
-        // Load theme resources BEFORE XAML parsing so StaticResource refs resolve.
         ThemeService.LoadAndApply();
-
         InitializeComponent();
     }
 
@@ -34,19 +31,94 @@ public partial class App : Application
     {
         base.OnStartup(e);
 
-        // Initialize key-value store — bootstraps .default + .{user} files.
+        _instanceMutex = new Mutex(true, MutexName, out bool isFirstInstance);
+        _ownsInstanceMutex = isFirstInstance;
+
+        var request = LaunchRequest.Parse(e.Args);
+
+        if (!isFirstInstance)
+        {
+            ForwardToRunningInstance(request.ToWire());
+            Shutdown();
+            return;
+        }
+
         AppStore.Init(AppContext.BaseDirectory);
 
-        // Join all CLI args — handles unquoted paths with spaces from shell launch.
-        // A file manager always receives a single path; OS may split on spaces if unquoted.
-        string initialPath = e.Args.Length > 0 ? string.Join(" ", e.Args) : "";
+        DispatcherUnhandledException += (_, args) =>
+        {
+            CustomDialog.Show("Unexpected Error", args.Exception.Message, DialogIcon.Error);
+            args.Handled = true;
+        };
 
-        var mainWindow = new MainWindow(initialPath);
+        var mainWindow = new MainWindow(request.Kind == LaunchRequestKind.Open ? request.Path : "");
+        MainWindow = mainWindow;
         mainWindow.Show();
+
+        if (request.Kind == LaunchRequestKind.Select)
+            mainWindow.HandleLaunchRequest(request);
+
+        StartPipeServer(mainWindow);
     }
 
     protected override void OnExit(ExitEventArgs e)
     {
+        try
+        {
+            if (_ownsInstanceMutex)
+                _instanceMutex?.ReleaseMutex();
+        }
+        catch
+        {
+        }
+        _instanceMutex?.Dispose();
+
         base.OnExit(e);
+    }
+
+    private static void ForwardToRunningInstance(string args)
+    {
+        try
+        {
+            using var client = new NamedPipeClientStream(".", PipeName, PipeDirection.Out);
+            client.Connect(2000);
+            using var writer = new StreamWriter(client, Encoding.UTF8) { AutoFlush = true };
+            writer.WriteLine(args);
+        }
+        catch
+        {
+        }
+    }
+
+    private static void StartPipeServer(MainWindow window)
+    {
+        var thread = new Thread(() =>
+        {
+            while (true)
+            {
+                try
+                {
+                    using var server = new NamedPipeServerStream(PipeName, PipeDirection.In);
+                    server.WaitForConnection();
+
+                    using var reader = new StreamReader(server, Encoding.UTF8);
+                    string? line = reader.ReadLine();
+
+                    if (line == null) continue;
+
+                    var dispatcher = Current?.Dispatcher;
+                    var request = LaunchRequest.FromWire(line);
+                    dispatcher?.BeginInvoke(() => window.HandleLaunchRequest(request));
+                }
+                catch
+                {
+                    return;
+                }
+            }
+        })
+        {
+            IsBackground = true
+        };
+        thread.Start();
     }
 }

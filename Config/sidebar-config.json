@@ -7,9 +7,8 @@
     "Pictures": "sidebar-pictures.svg",
     "Videos": "sidebar-videos.svg",
     "Downloads": "sidebar-downloads.svg",
-    "Recent": "sidebar-recent.svg",
     "MyComputer": "sidebar-filesystem.svg",
-    "Trash": "sidebar-trash.svg",
-    "Network": "sidebar-network.svg"
+    "Bookmark": "sidebar-bookmark.svg",
+    "Folder": "sidebar-folder.svg"
   }
 }

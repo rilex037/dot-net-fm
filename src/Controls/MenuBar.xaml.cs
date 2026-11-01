@@ -4,25 +4,52 @@ using System.Windows.Controls;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Menu bar — uses native WPF Menu/MenuItem so popup lifecycle,
-/// keyboard navigation (arrows, Escape, mnemonics), and focus are
-/// handled entirely by the framework. No manual popup wrangling needed.
-///
-/// Edit menu commands are bound to <see cref="CommandIds"/> via XAML,
-/// so keyboard gesture text is never duplicated.
-/// </summary>
 public partial class MenuBar : UserControl
 {
+    public event Action? AddBookmarkRequested;
+    public event Action? ManageBookmarksRequested;
+    public event Action? BookmarksSectionToggleRequested;
+    public event Action? HiddenFilesToggleRequested;
+    public event Action? SettingsRequested;
+
     public MenuBar()
     {
         InitializeComponent();
     }
 
+    public void SetBookmarksSectionVisible(bool visible) => BookmarksSectionToggle.IsChecked = visible;
+
+    public void SetHiddenFilesShown(bool shown) => HiddenFilesToggle.IsChecked = shown;
+
+    private void BookmarksSectionToggle_Click(object sender, RoutedEventArgs e)
+    {
+        BookmarksSectionToggleRequested?.Invoke();
+    }
+
+    private void HiddenFilesToggle_Click(object sender, RoutedEventArgs e)
+    {
+        HiddenFilesToggleRequested?.Invoke();
+    }
+
+    private void AddBookmark_Click(object sender, RoutedEventArgs e)
+    {
+        AddBookmarkRequested?.Invoke();
+    }
+
+    private void ManageBookmarks_Click(object sender, RoutedEventArgs e)
+    {
+        ManageBookmarksRequested?.Invoke();
+    }
+
+    private void Settings_Click(object sender, RoutedEventArgs e)
+    {
+        SettingsRequested?.Invoke();
+    }
+
     private void About_Click(object sender, RoutedEventArgs e)
     {
         var version = Assembly.GetExecutingAssembly().GetName().Version;
-        var versionText = version?.ToString(3) ?? "0.0.1";
+        var versionText = version?.ToString(3) ?? "0.1.0";
 
         CustomDialog.Show(
             "About DotNetFM",

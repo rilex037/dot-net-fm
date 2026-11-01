@@ -5,11 +5,6 @@ using System.Windows.Media;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Loads theme configuration from Config/theme-config.json and applies it
-/// as WPF resources (Color, SolidColorBrush, CornerRadius, Thickness, double).
-/// Call LoadAndApply() during App startup before any Window is created.
-/// </summary>
 public static class ThemeService
 {
     private const string ConfigFileName = "theme-config.json";
@@ -22,10 +17,6 @@ public static class ThemeService
     private static string ConfigPath =>
         Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Config", ConfigFileName);
 
-    /// <summary>
-    /// Loads theme config and merges all resources into Application.Current.Resources.
-    /// Duplicate keys are silently skipped (App.xaml hardcoded resources take precedence).
-    /// </summary>
     public static void LoadAndApply()
     {
         var config = LoadConfig();
@@ -34,7 +25,6 @@ public static class ThemeService
 
         var resources = Application.Current.Resources;
 
-        // --- Colors ---
         foreach (var kvp in config.Colors)
         {
             if (resources.Contains(kvp.Key))
@@ -44,7 +34,6 @@ public static class ThemeService
             resources.Add(kvp.Key, color);
         }
 
-        // --- Brushes (SolidColorBrush resources) ---
         foreach (var kvp in config.Brushes)
         {
             if (resources.Contains(kvp.Key))
@@ -54,7 +43,6 @@ public static class ThemeService
             resources.Add(kvp.Key, new SolidColorBrush(color));
         }
 
-        // --- Radius -> CornerRadius (keyed as "CornerRadius{Name}") ---
         foreach (var kvp in config.Radius)
         {
             string key = "CornerRadius" + kvp.Key;
@@ -71,7 +59,6 @@ public static class ThemeService
             }
         }
 
-        // --- Spacing -> Thickness or double ---
         foreach (var kvp in config.Spacing)
         {
             string key = "Spacing" + kvp.Key;
@@ -88,7 +75,6 @@ public static class ThemeService
             }
         }
 
-        // --- Sizing -> double ---
         foreach (var kvp in config.Sizing)
         {
             string key = "Size" + kvp.Key;
@@ -101,7 +87,6 @@ public static class ThemeService
             }
         }
 
-        // --- Fonts -> double size + FontWeight ---
         foreach (var kvp in config.Fonts)
         {
             string key = "Font" + kvp.Key;
@@ -117,7 +102,6 @@ public static class ThemeService
                 string? val = kvp.Value.GetString();
                 if (val != null)
                 {
-                    // Register FontWeight resources
                     if (kvp.Key.EndsWith("Weight", StringComparison.Ordinal))
                     {
                         resources.Add(key, ConvertFontWeight(val));
@@ -126,7 +110,6 @@ public static class ThemeService
             }
         }
 
-        // --- Opacity -> double ---
         foreach (var kvp in config.Opacity)
         {
             string key = "Opacity" + kvp.Key;
@@ -202,9 +185,6 @@ public static class ThemeService
         return null;
     }
 
-    /// <summary>
-    /// Converts a font weight string (e.g. "Normal", "Bold", "SemiBold") to a FontWeight.
-    /// </summary>
     private static FontWeight ConvertFontWeight(string weight)
     {
         return weight.ToLowerInvariant() switch
@@ -224,10 +204,6 @@ public static class ThemeService
     }
 }
 
-/// <summary>
-/// Deserialization model for theme-config.json.
-/// Spacing, Sizing, Opacity, Radius use JsonElement to handle mixed types (string/number).
-/// </summary>
 public class ThemeConfig
 {
     public Dictionary<string, string> Colors { get; set; } = new();

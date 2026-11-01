@@ -5,30 +5,33 @@ using Microsoft.VisualBasic.FileIO;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Windows-specific IFileOperations implementation for local filesystem operations.
-/// Handles rename, delete (to recycle bin), and transfer (copy/move) with Windows-specific behavior.
-/// </summary>
 public sealed class WindowsFileOperations : IFileOperations
 {
-    // SHGFI_EXETYPE flag for SHGetFileInfo — returns non-zero handle only for PE executables.
     private const uint SHGFI_EXETYPE = 0x2000;
 
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, IntPtr psfi, uint cbFileInfo, uint uFlags);
+
     public IFileOperations.OperationResult Rename(FolderItem item, string newName)
     {
-        if (string.IsNullOrWhiteSpace(newName))
+        string trimmed = newName.Trim();
+
+        if (string.IsNullOrWhiteSpace(trimmed))
             return new IFileOperations.OperationResult(false, "Name cannot be empty.");
+
+        if (trimmed.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
+            return new IFileOperations.OperationResult(false, "The name contains characters that are not allowed.");
 
         string? dir = Path.GetDirectoryName(item.FullPath);
         if (dir == null)
             return new IFileOperations.OperationResult(false, "Could not determine parent directory.");
 
-        string newPath = Path.Combine(dir, newName.Trim());
+        string newPath = Path.Combine(dir, trimmed);
 
-        if (string.Equals(newPath, item.FullPath, StringComparison.OrdinalIgnoreCase))
+        if (string.Equals(newPath, item.FullPath, StringComparison.Ordinal))
             return new IFileOperations.OperationResult(true);
+
+        bool caseOnlyRename = string.Equals(newPath, item.FullPath, StringComparison.OrdinalIgnoreCase);
 
         try
         {
@@ -36,7 +39,7 @@ public sealed class WindowsFileOperations : IFileOperations
             {
                 if (!Directory.Exists(item.FullPath))
                     return new IFileOperations.OperationResult(false, "Source directory no longer exists.");
-                if (Directory.Exists(newPath))
+                if (!caseOnlyRename && Directory.Exists(newPath))
                     return new IFileOperations.OperationResult(false, "A directory with that name already exists.");
 
                 Directory.Move(item.FullPath, newPath);
@@ -45,13 +48,13 @@ public sealed class WindowsFileOperations : IFileOperations
             {
                 if (!File.Exists(item.FullPath))
                     return new IFileOperations.OperationResult(false, "Source file no longer exists.");
-                if (File.Exists(newPath))
+                if (!caseOnlyRename && File.Exists(newPath))
                     return new IFileOperations.OperationResult(false, "A file with that name already exists.");
 
                 File.Move(item.FullPath, newPath);
             }
 
-            item.Name = newName.Trim();
+            item.Name = trimmed;
             item.FullPath = newPath;
             return new IFileOperations.OperationResult(true);
         }
@@ -127,13 +130,34 @@ public sealed class WindowsFileOperations : IFileOperations
                 bool isDuplicateInPlace = sourceDir != null &&
                     string.Equals(Path.GetFullPath(sourceDir), fullTargetDir, StringComparison.OrdinalIgnoreCase);
 
+                if (Directory.Exists(source))
+                {
+                    string fullSource = Path.GetFullPath(source).TrimEnd('\\');
+                    string fullTarget = fullTargetDir.TrimEnd('\\');
+                    if (string.Equals(fullSource, fullTarget, StringComparison.OrdinalIgnoreCase) ||
+                        fullTarget.StartsWith(fullSource + "\\", StringComparison.OrdinalIgnoreCase))
+                    {
+                        results.Add(new IFileOperations.OperationResult(false,
+                            $"Cannot move \u201c{name}\u201d into itself."));
+                        continue;
+                    }
+                }
+
                 string dest = Path.Combine(targetDir, name);
                 bool destExists = File.Exists(dest) || Directory.Exists(dest);
 
-                if (isDuplicateInPlace && destExists)
+                if (isDuplicateInPlace)
                 {
-                    dest = GetUniquePath(targetDir, name);
-                    destExists = false;
+                    if (!forceCopy)
+                    {
+                        results.Add(new IFileOperations.OperationResult(true));
+                        continue;
+                    }
+                    if (destExists)
+                    {
+                        dest = GetUniquePath(targetDir, name);
+                        destExists = false;
+                    }
                 }
                 else if (destExists && conflictPolicy == IFileOperations.ConflictPolicy.Cancel)
                 {

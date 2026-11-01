@@ -5,17 +5,14 @@ using System.Windows.Input;
 
 namespace DotNetFM;
 
-/// <summary>
-/// Status bar displaying status text and zoom slider.
-/// </summary>
 public partial class StatusLayout : UserControl
 {
-    /// <summary>Raised when the zoom slider changes. The int is the icon pixel size (48, 64, 128, 256, 512).</summary>
     public event Action<int>? ZoomChanged;
+
+    public event Action? SidebarToggleRequested;
 
     private bool _suppressZoomChanged;
 
-    /// <summary>Whether the sidebar is currently collapsed (toggles the icon).</summary>
     private bool _isSidebarCollapsed;
 
     private const string CollapseLeftIcon = "sidebar-collapse-left.svg";
@@ -28,30 +25,35 @@ public partial class StatusLayout : UserControl
         SidebarToggleIcon.UriSource = new Uri(IconProvider.GetFullPath(CollapseLeftIcon));
     }
 
-    private void SidebarToggleButton_Click(object sender, RoutedEventArgs e)
+    public void SetSidebarCollapsed(bool collapsed)
     {
-        _isSidebarCollapsed = !_isSidebarCollapsed;
+        _isSidebarCollapsed = collapsed;
+        UpdateToggleIcon();
+    }
+
+    private void UpdateToggleIcon()
+    {
         string icon = _isSidebarCollapsed ? CollapseRightIcon : CollapseLeftIcon;
         SidebarToggleIcon.UriSource = new Uri(IconProvider.GetFullPath(icon));
     }
 
-    /// <summary>
-    /// Updates the status text.
-    /// </summary>
+    private void SidebarToggleButton_Click(object sender, RoutedEventArgs e)
+    {
+        _isSidebarCollapsed = !_isSidebarCollapsed;
+        UpdateToggleIcon();
+        SidebarToggleRequested?.Invoke();
+    }
+
     public void SetStatus(string status)
     {
         if (StatusTextBlock != null)
             StatusTextBlock.Text = status;
     }
 
-    /// <summary>
-    /// Sets the zoom slider to the given icon pixel size without firing <see cref="ZoomChanged"/>.
-    /// Used when switching tabs to reflect the target tab's zoom level.
-    /// </summary>
     public void SetZoomForIconSize(int iconSize)
     {
         int index = Array.IndexOf(ZoomSizes.Sizes, iconSize);
-        if (index < 0) index = 1; // fallback to 64px
+        if (index < 0) index = 1;
 
         _suppressZoomChanged = true;
         ZoomSlider.Value = index;

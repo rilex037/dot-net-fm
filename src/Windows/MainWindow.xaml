@@ -6,9 +6,11 @@
         xmlns:local="clr-namespace:DotNetFM"
         mc:Ignorable="d"
         Title="Home" Height="768" Width="1024"
+        MinWidth="720" MinHeight="480"
         WindowStyle="None"
         WindowState="Normal"
         ResizeMode="CanResize"
+        WindowStartupLocation="CenterScreen"
         Background="{StaticResource BackgroundBrush}"
         Foreground="{StaticResource TextPrimaryBrush}"
         FontFamily="{StaticResource AppFont}"
@@ -18,43 +20,59 @@
         TextOptions.TextRenderingMode="ClearType">
 
     <Window.InputBindings>
-        <KeyBinding Command="{x:Static local:CommandIds.Exit}"     Key="F4"       Modifiers="Alt"/>
-        <KeyBinding Command="{x:Static local:CommandIds.Rename}"   Key="F2"/>
-        <KeyBinding Command="{x:Static local:CommandIds.Delete}"   Key="Delete"/>
-        <KeyBinding Command="{x:Static local:CommandIds.Copy}"     Key="C"        Modifiers="Control"/>
-        <KeyBinding Command="{x:Static local:CommandIds.Cut}"      Key="X"        Modifiers="Control"/>
-        <KeyBinding Command="{x:Static local:CommandIds.Paste}"    Key="V"        Modifiers="Control"/>
-        <KeyBinding Command="{x:Static local:CommandIds.Refresh}"  Key="F5"/>
-        <KeyBinding Command="{x:Static local:CommandIds.ZoomIn}"   Key="OemPlus"  Modifiers="Control"/>
-        <KeyBinding Command="{x:Static local:CommandIds.ZoomOut}"  Key="OemMinus" Modifiers="Control"/>
-        <KeyBinding Command="{x:Static local:CommandIds.SelectAll}" Key="A"        Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Exit}"           Key="F4"        Modifiers="Alt"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Rename}"         Key="F2"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Delete}"         Key="Delete"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Cut}"            Key="X"         Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Copy}"           Key="C"         Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Paste}"          Key="V"         Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.SelectAll}"      Key="A"         Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Refresh}"        Key="F5"/>
+        <KeyBinding Command="{x:Static local:CommandIds.ZoomIn}"         Key="OemPlus"   Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.ZoomOut}"        Key="OemMinus"  Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.NewTab}"         Key="T"         Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.CloseTab}"       Key="W"         Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.NextTab}"        Key="Tab"       Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.PrevTab}"        Key="Tab"       Modifiers="Control+Shift"/>
+        <KeyBinding Command="{x:Static local:CommandIds.GoBack}"         Key="Left"      Modifiers="Alt"/>
+        <KeyBinding Command="{x:Static local:CommandIds.GoForward}"      Key="Right"     Modifiers="Alt"/>
+        <KeyBinding Command="{x:Static local:CommandIds.GoUp}"           Key="Back"/>
+        <KeyBinding Command="{x:Static local:CommandIds.Open}"           Key="Enter"/>
+        <KeyBinding Command="{x:Static local:CommandIds.ClearSelection}" Key="Escape"/>
+        <KeyBinding Command="{x:Static local:CommandIds.FocusAddress}"   Key="L"         Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.AddBookmark}"    Key="D"         Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.ToggleBookmarksSection}" Key="B"  Modifiers="Control"/>
+        <KeyBinding Command="{x:Static local:CommandIds.ToggleHiddenFiles}"  Key="H"     Modifiers="Control"/>
     </Window.InputBindings>
 
     <Window.CommandBindings>
-        <CommandBinding Command="{x:Static local:CommandIds.Exit}"
-                        Executed="Exit_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.Rename}"
-                        Executed="Rename_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.Delete}"
-                        Executed="Delete_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.Copy}"
-                        Executed="Copy_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.Cut}"
-                        Executed="Cut_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.Paste}"
-                        Executed="Paste_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.Refresh}"
-                        Executed="Refresh_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.ZoomIn}"
-                        Executed="ZoomIn_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.ZoomOut}"
-                        Executed="ZoomOut_Executed"/>
-        <CommandBinding Command="{x:Static local:CommandIds.SelectAll}"
-                        Executed="SelectAll_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Exit}"           Executed="Exit_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Rename}"         Executed="Rename_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Delete}"         Executed="Delete_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Cut}"            Executed="Cut_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Copy}"           Executed="Copy_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Paste}"          Executed="Paste_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.SelectAll}"      Executed="SelectAll_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Refresh}"        Executed="Refresh_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.ZoomIn}"         Executed="ZoomIn_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.ZoomOut}"        Executed="ZoomOut_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.NewTab}"         Executed="NewTab_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.CloseTab}"       Executed="CloseTab_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.NextTab}"        Executed="NextTab_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.PrevTab}"        Executed="PrevTab_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.GoBack}"         Executed="GoBack_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.GoForward}"      Executed="GoForward_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.GoUp}"           Executed="GoUp_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.Open}"           Executed="Open_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.ClearSelection}" Executed="ClearSelection_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.FocusAddress}"   Executed="FocusAddress_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.AddBookmark}"    Executed="AddBookmark_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.ToggleBookmarksSection}" Executed="ToggleBookmarksSection_Executed"/>
+        <CommandBinding Command="{x:Static local:CommandIds.ToggleHiddenFiles}"  Executed="ToggleHiddenFiles_Executed"/>
     </Window.CommandBindings>
 
     <WindowChrome.WindowChrome>
-        <WindowChrome CaptionHeight="{StaticResource SizeTitleBarHeight}" GlassFrameThickness="0" CornerRadius="20" ResizeBorderThickness="6"/>
+        <WindowChrome CaptionHeight="{StaticResource SizeTitleBarHeight}" GlassFrameThickness="0" CornerRadius="10" ResizeBorderThickness="6"/>
     </WindowChrome.WindowChrome>
 
     <Grid>
@@ -66,47 +84,51 @@
             <RowDefinition Height="32"/>
         </Grid.RowDefinitions>
 
-        <!-- ROW 0: Title Bar (Caption area) -->
         <local:TitleBar x:Name="TitleBar" Grid.Row="0"/>
 
-        <!-- ROW 1: Menu Bar (below caption area, normal hit testing) -->
         <local:MenuBar x:Name="MenuBar" Grid.Row="1"/>
 
-        <!-- ROW 2: Navigation Toolbar -->
         <local:NavigationToolbar x:Name="NavToolbar" Grid.Row="2"/>
 
-        <!-- ROW 3: Sidebar + File Grid with Tabs -->
         <Grid Grid.Row="3">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="200"/>
+                <ColumnDefinition x:Name="SidebarColumn" Width="200"/>
+                <ColumnDefinition x:Name="SplitterColumn" Width="Auto"/>
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <!-- Sidebar -->
             <local:SidebarPanel Grid.Column="0" x:Name="SidebarPanel"/>
 
-            <!-- File Grid + Tab Strip -->
-            <Grid Grid.Column="1">
+            <GridSplitter Grid.Column="1" x:Name="SidebarSplitter"
+                          Width="5"
+                          HorizontalAlignment="Center"
+                          VerticalAlignment="Stretch"
+                          Background="Transparent"
+                          ShowsPreview="False"
+                          ResizeBehavior="PreviousAndNext"
+                          Cursor="SizeWE"
+                          Focusable="False"/>
+
+            <Grid Grid.Column="2">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="28"/>
                     <RowDefinition Height="*"/>
                 </Grid.RowDefinitions>
 
-                <!-- Tab Strip -->
-                <Grid Grid.Row="0" Background="{StaticResource ToolbarBrush}">
+                <Grid Grid.Row="0" Background="{StaticResource ToolbarBrush}"
+                      MouseLeftButtonDown="TabStripArea_MouseLeftButtonDown">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
                     <StackPanel x:Name="TabStripPanel" Orientation="Horizontal"
-                        VerticalAlignment="Center" Margin="{StaticResource SpacingTabStripMargin}"/>
+                        VerticalAlignment="Stretch" Margin="{StaticResource SpacingTabStripMargin}"/>
 
-                    <!-- Add Tab Button -->
                     <Button Grid.Column="1" x:Name="AddTabButton" Width="24" Height="24"
                             Margin="0,0,8,0" Click="AddTabButton_Click"
-                            Background="Transparent" BorderThickness="0" Focusable="False"
-                            ToolTip="New Tab (Ctrl+T)">
+                            Style="{StaticResource SubtleButton}"
+                            ToolTip="New Tab (Ctrl+T) — double-click empty area">
                         <Viewbox Width="12" Height="12" Stretch="Uniform">
                             <Canvas Width="10" Height="10">
                                 <Path Data="M5,0 L5,10 M0,5 L10,5"
@@ -117,12 +139,10 @@
                     </Button>
                 </Grid>
 
-                <!-- File View Container (owns all interaction logic, hosts swappable views) -->
                 <local:FileViewContainer Grid.Row="1" x:Name="FileContainer"/>
             </Grid>
         </Grid>
 
-        <!-- ROW 4: Status Bar -->
         <local:StatusLayout x:Name="StatusBar" Grid.Row="4"/>
     </Grid>
 </Window>
