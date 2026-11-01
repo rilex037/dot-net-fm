@@ -7,6 +7,8 @@ on:
 jobs:
   build-and-release:
     runs-on: windows-latest
+    permissions:
+      contents: write
 
     steps:
       - uses: actions/checkout@v4
@@ -22,7 +24,10 @@ jobs:
           $commitMsg = git log -1 --format="%s`n%b"
           $lines = $commitMsg -split "`n"
           $version = $lines[0].Trim()
-          $changelog = ($lines[1..($lines.Length-1)] | Where-Object { $_.Trim() -ne "" }) -join "`n"
+          $changelog = ""
+          if ($lines.Length -gt 1) {
+            $changelog = ($lines[1..($lines.Length-1)] | Where-Object { $_.Trim() -ne "" }) -join "`n"
+          }
           echo "VERSION=$version" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "CHANGELOG<<EOF" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           echo "$changelog" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
@@ -59,8 +64,8 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.GH_TOKEN }}
           tag_name: ${{ env.VERSION }}
+          target_commitish: ${{ github.sha }}
           name: ${{ env.VERSION }}
           body: ${{ env.CHANGELOG }}
           files: DotNetFM-${{ env.VERSION }}.zip
