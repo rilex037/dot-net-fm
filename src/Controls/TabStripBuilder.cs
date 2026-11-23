@@ -11,6 +11,7 @@ public sealed class TabStripBuilder
     private readonly IModule _module;
     private readonly TabManager _tabs;
     private readonly Dictionary<Guid, Action<TabStateRecord>> _titleHandlers = new();
+    private Guid? _lastActiveId;
 
     public TabStripBuilder(IModule module, TabManager tabs)
     {
@@ -23,26 +24,60 @@ public sealed class TabStripBuilder
         UnsubscribeAll();
         panel.Children.Clear();
 
+        var overflow = panel as TabOverflowPanel;
+        if (overflow != null)
+            overflow.MinTabWidth = ComputeMinTabWidth();
+
+        UIElement? activeElement = null;
+        Guid? activeId = _tabs.ActiveTab?.State.TabId;
+
         for (int i = 0; i < _tabs.Tabs.Count; i++)
         {
             var store = _tabs.Tabs[i];
             var tabId = store.State.TabId;
-            bool isActive = _tabs.ActiveTab?.State.TabId == tabId;
+            bool isActive = activeId == tabId;
 
             if (i > 0)
                 panel.Children.Add(BuildSeparator());
 
-            panel.Children.Add(BuildTab(store, tabId, isActive));
+            var tab = BuildTab(store, tabId, isActive);
+            if (isActive)
+                activeElement = tab;
+            panel.Children.Add(tab);
         }
+
+        if (overflow != null)
+        {
+            overflow.ActiveChild = activeElement;
+            if (activeElement != null && activeId != _lastActiveId)
+                overflow.RevealActive();
+        }
+
+        _lastActiveId = activeId;
     }
 
-    private static UIElement BuildSeparator() => new Border
+    private static double ComputeMinTabWidth()
     {
-        Width = 1,
-        Background = (Brush)Application.Current.FindResource("SeparatorBrush"),
-        VerticalAlignment = VerticalAlignment.Stretch,
-        Margin = new Thickness(0, 7, 0, 7),
-    };
+        var padding = (Thickness)Application.Current.FindResource("SpacingTabItemPadding");
+        double titleMin = (double)Application.Current.FindResource("SizeTabTitleMinWidth");
+        double closeButton = (double)Application.Current.FindResource("SizeTabCloseButtonSize") + 6;
+        const double titleRightMargin = 8;
+
+        return Math.Ceiling(padding.Left + padding.Right + titleMin + titleRightMargin + closeButton);
+    }
+
+    private static UIElement BuildSeparator()
+    {
+        var separator = new Border
+        {
+            Width = 1,
+            Background = (Brush)Application.Current.FindResource("SeparatorBrush"),
+            VerticalAlignment = VerticalAlignment.Stretch,
+            Margin = new Thickness(0, 7, 0, 7),
+        };
+        TabOverflowPanel.SetIsSeparator(separator, true);
+        return separator;
+    }
 
     private UIElement BuildTab(TabStore store, Guid tabId, bool isActive)
     {

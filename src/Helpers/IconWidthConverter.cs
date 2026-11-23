@@ -9,15 +9,18 @@ public sealed class IconWidthConverter : IValueConverter
     {
         double size = value is int intSize ? intSize : 96;
 
-        double factor = size >= 256 ? 1.15 : size >= 128 ? 1.2 : size >= 96 ? 1.3 : 1.4;
+        double width = size >= 128
+            ? size + 12
+            : Math.Max(72, size * (size >= 96 ? 1.3 : 1.4));
+
         if (parameter != null &&
             double.TryParse(parameter.ToString(), NumberStyles.Float, CultureInfo.InvariantCulture, out double parsed) &&
             parsed > 0)
         {
-            factor = parsed;
+            width = size * parsed;
         }
 
-        return Math.Round(size * factor);
+        return Math.Round(width);
     }
 
     public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)

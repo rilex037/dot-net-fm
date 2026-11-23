@@ -18,11 +18,20 @@ public partial class FileGridView : UserControl, IFileViewContent
     public static readonly DependencyProperty InteractionServiceProperty =
         DependencyProperty.Register(nameof(InteractionService), typeof(FileInteractionService), typeof(FileGridView));
 
-    private static void OnIconSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    private static void OnIconSizeChanged(DependencyObject d, DependencyPropertyChangedEventArgs e) =>
+        ((FileGridView)d).ApplyItemMetrics((int)e.NewValue);
+
+    private void ApplyItemMetrics(int iconSize)
     {
-        var grid = (FileGridView)d;
-        int m = (int)e.NewValue >= 128 ? 2 : 4;
-        grid.Resources["ItemMargin"] = new Thickness(m);
+        bool large = iconSize >= 128;
+        var basePadding = Application.Current.TryFindResource("SpacingItemPadding") is Thickness t
+            ? t
+            : new Thickness(6, 8, 6, 6);
+
+        Resources["ItemMargin"] = new Thickness(large ? 2 : 4);
+        Resources["ItemPadding"] = large
+            ? new Thickness(2, basePadding.Top, 2, basePadding.Bottom)
+            : basePadding;
     }
 
     public IEnumerable? Folders
@@ -48,9 +57,12 @@ public partial class FileGridView : UserControl, IFileViewContent
 
     public event Action<MouseWheelEventArgs>? MouseWheelPreview;
 
+    private readonly FastWheelScroll _wheelScroll = new();
+
     public FileGridView()
     {
         InitializeComponent();
+        ApplyItemMetrics(IconSize);
     }
 
     private void RenameBox_KeyDown(object sender, KeyEventArgs e)
@@ -79,7 +91,7 @@ public partial class FileGridView : UserControl, IFileViewContent
 
         if (!e.Handled)
         {
-            FileScrollViewer.ScrollToVerticalOffset(FileScrollViewer.VerticalOffset - e.Delta / 3.0);
+            _wheelScroll.Apply(FileScrollViewer, e);
             e.Handled = true;
         }
     }

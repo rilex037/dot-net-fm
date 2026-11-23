@@ -35,12 +35,17 @@ internal static partial class NativeMethods
         public uint dwFlags;
     }
 
-    internal static void ConstrainWindowToWorkArea(IntPtr hwnd, IntPtr lParam, ref bool handled)
+    internal static void ConstrainWindowToWorkArea(IntPtr hwnd, IntPtr lParam, ref bool handled, int minTrackWidth, int minTrackHeight)
     {
         var mmi = Marshal.PtrToStructure<MINMAXINFO>(lParam);
 
+        // The hook marks WM_GETMINMAXINFO as handled, which stops WPF from applying
+        // MinWidth/MinHeight, so the minimum track size has to be set here.
+        mmi.ptMinTrackSize.x = minTrackWidth;
+        mmi.ptMinTrackSize.y = minTrackHeight;
+
         IntPtr hMonitor = MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
-        var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MINMAXINFO>() };
+        var monitorInfo = new MONITORINFO { cbSize = Marshal.SizeOf<MONITORINFO>() };
 
         if (GetMonitorInfo(hMonitor, ref monitorInfo))
         {
@@ -49,8 +54,9 @@ internal static partial class NativeMethods
             mmi.ptMaxPosition.y = rc.Top;
             mmi.ptMaxSize.x = rc.Right - rc.Left;
             mmi.ptMaxSize.y = rc.Bottom - rc.Top;
-            Marshal.StructureToPtr(mmi, lParam, true);
-            handled = true;
         }
+
+        Marshal.StructureToPtr(mmi, lParam, true);
+        handled = true;
     }
 }

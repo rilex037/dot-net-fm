@@ -112,6 +112,7 @@ public partial class MainWindow : Window, IAppContextMenuHost
         InitializeSidebar(rawPath);
         WireUpSidebarAndNavEvents();
         WireUpZoomEvents();
+        WireUpTabStripOverflow();
         WireUpTabManagerEvents();
         WireUpInteractionEvents();
         WireUpMenuBarEvents();
@@ -706,6 +707,12 @@ public partial class MainWindow : Window, IAppContextMenuHost
             if (_tabs.ActiveTab == null) return;
             _tabs.DispatchActive(new TabAction.SetIconSize(size));
         };
+    }
+
+    private void WireUpTabStripOverflow()
+    {
+        TabScrollLeftButton.Click += (_, _) => TabStripPanel.ScrollByTabs(-1);
+        TabScrollRightButton.Click += (_, _) => TabStripPanel.ScrollByTabs(1);
     }
 
     private void WireUpMenuBarEvents()
@@ -1429,7 +1436,12 @@ public partial class MainWindow : Window, IAppContextMenuHost
     private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
     {
         if (msg == NativeMethods.WM_GETMINMAXINFO)
-            NativeMethods.ConstrainWindowToWorkArea(hwnd, lParam, ref handled);
+        {
+            var dpi = System.Windows.Media.VisualTreeHelper.GetDpi(this);
+            int minWidth = (int)Math.Ceiling(MinWidth * dpi.DpiScaleX);
+            int minHeight = (int)Math.Ceiling(MinHeight * dpi.DpiScaleY);
+            NativeMethods.ConstrainWindowToWorkArea(hwnd, lParam, ref handled, minWidth, minHeight);
+        }
 
         return IntPtr.Zero;
     }

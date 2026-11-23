@@ -21,6 +21,9 @@ public partial class StatusLayout : UserControl
     public StatusLayout()
     {
         InitializeComponent();
+        _suppressZoomChanged = true;
+        ZoomSlider.Maximum = ZoomSizes.Sizes.Length - 1;
+        _suppressZoomChanged = false;
         ZoomSlider.PreviewMouseLeftButtonDown += ZoomSlider_MouseLeftButtonDown;
         SidebarToggleIcon.UriSource = new Uri(IconProvider.GetFullPath(CollapseLeftIcon));
     }
@@ -52,8 +55,7 @@ public partial class StatusLayout : UserControl
 
     public void SetZoomForIconSize(int iconSize)
     {
-        int index = Array.IndexOf(ZoomSizes.Sizes, iconSize);
-        if (index < 0) index = 1;
+        int index = ZoomSizes.NearestIndex(iconSize);
 
         _suppressZoomChanged = true;
         ZoomSlider.Value = index;

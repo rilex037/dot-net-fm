@@ -20,6 +20,20 @@ public static class VisualTreeUtility
         return null;
     }
 
+    public static T? FindDescendantByName<T>(DependencyObject parent, string name) where T : FrameworkElement
+    {
+        for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+        {
+            var child = VisualTreeHelper.GetChild(parent, i);
+            if (child is T match && match.Name == name)
+                return match;
+            var result = FindDescendantByName<T>(child, name);
+            if (result != null)
+                return result;
+        }
+        return null;
+    }
+
     public static FolderItem? GetFolderItemAtPoint(ItemsControl itemsControl, Point position)
     {
         var hit = VisualTreeHelper.HitTest(itemsControl, position);

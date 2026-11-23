@@ -21,6 +21,7 @@
     "HoverSidebarBrush": "#15FFFFFF",
     "HoverNavButtonBrush": "#33FFFFFF",
     "InputBackground": "#333333",
+    "ScrollTrack": "#12FFFFFF",
     "ScrollThumbDefault": "#55FFFFFF",
     "ScrollThumbHover": "#88FFFFFF",
     "ScrollThumbDragging": "#AAFFFFFF",
@@ -33,10 +34,10 @@
   "Radius": {
     "Medium": 3,
     "Large": 4,
-    "ScrollThumb": 4
+    "ScrollThumb": 2
   },
   "Spacing": {
-    "ContentMargin": "24,24,24,24",
+    "ContentMargin": "6,4,6,8",
     "ItemPadding": "6,8,6,6",
     "SidebarTopMargin": "0,8,0,0",
     "ChildSectionMargin": "0,0,0,4",
@@ -49,7 +50,7 @@
     "NavGroupLeftMargin": "6,0,0,0",
     "StatusBarIconMargin": "6,0,0,0",
     "ZoomGroupMargin": "0,0,20,0",
-    "IconBottomMargin": "0,0,0,8",
+    "IconBottomMargin": "0,0,0,4",
     "ItemCountMargin": "0,2,0,0",
     "TabItemPadding": "10,0,10,0",
     "SidebarSectionHeaderMargin": "12,0,0,3"
@@ -61,7 +62,7 @@
     "NavButtonSize": 28,
     "AddressBarHeight": 24,
     "IconSize": 15,
-    "ScrollBarWidth": 8,
+    "ScrollBarWidth": 14,
     "TabTitleMinWidth": 40,
     "TabTitleMaxWidth": 150,
     "TabCloseButtonSize": 12,

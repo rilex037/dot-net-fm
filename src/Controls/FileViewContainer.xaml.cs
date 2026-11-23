@@ -291,7 +291,7 @@ public partial class FileViewContainer : UserControl, IFileView
             Focus();
             CommitAnyRename();
 
-            bool isNameClick = e.OriginalSource is TextBlock;
+            bool isNameClick = e.OriginalSource is TextBlock { Name: "NameText" };
             if (hitItem.IsSelected)
             {
                 _pendingSelectedClick = hitItem;
@@ -365,10 +365,21 @@ public partial class FileViewContainer : UserControl, IFileView
             {
                 if (itemsControl.ItemContainerGenerator.ContainerFromItem(item) is not ContentPresenter container)
                     return null;
-                var topLeft = container.TranslatePoint(new Point(0, 0), canvas);
-                return new Rect(topLeft, new Size(container.ActualWidth, container.ActualHeight));
+                return GetItemHitBounds(container, canvas);
             }, snapshot);
         }
+    }
+
+    private static Rect? GetItemHitBounds(ContentPresenter container, UIElement relativeTo)
+    {
+        Rect? bounds = null;
+        var panel = VisualTreeUtility.FindDescendantByName<FrameworkElement>(container, "ItemPanel");
+        if (panel != null && panel.ActualWidth > 0 && panel.ActualHeight > 0)
+        {
+            var topLeft = panel.TranslatePoint(new Point(0, 0), relativeTo);
+            bounds = new Rect(topLeft, new Size(panel.ActualWidth, panel.ActualHeight));
+        }
+        return bounds;
     }
 
     private void FileView_PreviewMouseLeftButtonUp(object sender, MouseButtonEventArgs e)

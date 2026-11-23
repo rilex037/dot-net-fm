@@ -5,12 +5,18 @@
 
     <UserControl.Resources>
         <Thickness x:Key="ItemMargin">4</Thickness>
+        <Thickness x:Key="ItemPadding">6,8,6,6</Thickness>
+
+        <!-- Rename selection highlight. RenameTextBox paints it behind the text, so the text stays white. -->
+        <SolidColorBrush x:Key="RenameSelection" Color="#8A1038"/>
 
         <Style x:Key="ScrollThumbs" TargetType="Thumb">
+            <Setter Property="MinHeight" Value="36"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Thumb">
                         <Border x:Name="RectangleCorner"
+                                Margin="2,0"
                                 Background="{StaticResource ScrollThumbDefault}"
                                 CornerRadius="{StaticResource CornerRadiusScrollThumb}"/>
                         <ControlTemplate.Triggers>
@@ -33,7 +39,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ScrollBar">
-                        <Grid x:Name="Bg" Background="Transparent" ClipToBounds="True" Width="{TemplateBinding Width}">
+                        <Grid x:Name="Bg" Background="{StaticResource ScrollTrack}" ClipToBounds="True" Width="{TemplateBinding Width}">
                             <Track x:Name="PART_Track" IsDirectionReversed="True" IsEnabled="{TemplateBinding IsEnabled}">
                                 <Track.DecreaseRepeatButton>
                                     <RepeatButton Command="ScrollBar.PageUpCommand" Opacity="0" Focusable="False" />
@@ -77,25 +83,14 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate DataType="local:FolderItem">
                         <Border x:Name="ItemBorder" Cursor="Hand"
-                                Margin="{DynamicResource ItemMargin}" CornerRadius="{StaticResource CornerRadiusLarge}">
-                            <Border.Style>
-                                <Style TargetType="Border">
-                                    <Setter Property="Background" Value="Transparent"/>
-                                    <Style.Triggers>
-                                        <Trigger Property="IsMouseOver" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource HoverHighlightBrush}"/>
-                                        </Trigger>
-                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
-                                            <Setter Property="Background" Value="{StaticResource SelectedItemBackground}"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </Border.Style>
-
-                            <StackPanel Orientation="Vertical"
+                                Margin="{DynamicResource ItemMargin}">
+                            <!-- ItemPanel is the click area (thumbnail + label). The margins around it are not. -->
+                            <StackPanel x:Name="ItemPanel"
+                                        Background="Transparent"
+                                        Orientation="Vertical"
                                         HorizontalAlignment="Center"
                                         VerticalAlignment="Top"
-                                        Margin="{StaticResource SpacingItemPadding}"
+                                        Margin="{DynamicResource ItemPadding}"
                                         Width="{Binding IconSize,
                                                 RelativeSource={RelativeSource AncestorType=local:FileGridView},
                                                 Converter={StaticResource IconWidthConverter}}">
@@ -106,67 +101,105 @@
                                     <Image x:Name="IconImage"
                                            Stretch="Uniform"
                                            HorizontalAlignment="Center"
-                                           VerticalAlignment="Center"
+                                           VerticalAlignment="Bottom"
                                            MaxWidth="{Binding IconSize, RelativeSource={RelativeSource AncestorType=local:FileGridView}}"
                                            MaxHeight="{Binding IconSize, RelativeSource={RelativeSource AncestorType=local:FileGridView}}"
                                            Source="{Binding NativeIcon}"/>
                                 </Border>
 
-                                <TextBlock x:Name="NameText"
-                                           Text="{Binding Name}"
-                                           FontSize="{StaticResource FontFileNameSize}"
-                                           Foreground="{StaticResource TextPrimaryBrush}"
-                                           HorizontalAlignment="Center"
-                                           TextAlignment="Center"
-                                           TextWrapping="Wrap">
-                                    <TextBlock.Style>
-                                        <Style TargetType="TextBlock">
-                                            <Setter Property="Visibility" Value="Visible"/>
+                                <!-- Label box: name + details. This is what turns pink when selected. -->
+                                <Border x:Name="NameHost"
+                                        HorizontalAlignment="Stretch"
+                                        Padding="4,2"
+                                        CornerRadius="{StaticResource CornerRadiusLarge}">
+                                    <Border.Style>
+                                        <Style TargetType="Border">
+                                            <Setter Property="Background" Value="Transparent"/>
                                             <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
-                                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                                <DataTrigger Binding="{Binding IsMouseOver, ElementName=ItemBorder}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource HoverHighlightBrush}"/>
+                                                </DataTrigger>
+                                                <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                    <Setter Property="Background" Value="{StaticResource AccentBrush}"/>
                                                 </DataTrigger>
                                             </Style.Triggers>
                                         </Style>
-                                    </TextBlock.Style>
-                                </TextBlock>
+                                    </Border.Style>
 
-                                <TextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
-                                         Background="Transparent"
-                                         Foreground="{StaticResource TextPrimaryBrush}"
-                                         FontFamily="{StaticResource AppFont}"
-                                         BorderThickness="0"
-                                         FontSize="{StaticResource FontFileNameSize}"
-                                         Padding="1,0"
-                                         MinWidth="160"
-                                         MaxWidth="380"
-                                         HorizontalAlignment="Center"
-                                         TextAlignment="Center"
-                                         TextWrapping="Wrap"
-                                         VerticalContentAlignment="Center"
-                                         CaretBrush="{StaticResource TextPrimaryBrush}"
-                                         SelectionBrush="{StaticResource SelectionBackground}"
-                                         KeyDown="RenameBox_KeyDown"
-                                         LostFocus="RenameBox_LostFocus">
-                                    <TextBox.Style>
-                                        <Style TargetType="TextBox">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                            <Style.Triggers>
-                                                <DataTrigger Binding="{Binding IsEditing}" Value="True">
-                                                    <Setter Property="Visibility" Value="Visible"/>
-                                                </DataTrigger>
-                                            </Style.Triggers>
-                                        </Style>
-                                    </TextBox.Style>
-                                </TextBox>
+                                    <StackPanel Orientation="Vertical">
+                                        <Grid>
+                                            <TextBlock x:Name="NameText"
+                                                       Text="{Binding Name}"
+                                                       FontSize="{StaticResource FontFileNameSize}"
+                                                       HorizontalAlignment="Center"
+                                                       TextAlignment="Center"
+                                                       TextWrapping="Wrap">
+                                                <TextBlock.Style>
+                                                    <Style TargetType="TextBlock">
+                                                        <Setter Property="Foreground" Value="{StaticResource TextPrimaryBrush}"/>
+                                                        <Setter Property="Visibility" Value="Visible"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                                <Setter Property="Foreground" Value="{StaticResource WhiteBrush}"/>
+                                                            </DataTrigger>
+                                                            <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                                <Setter Property="Visibility" Value="Collapsed"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </TextBlock.Style>
+                                            </TextBlock>
 
-                                <TextBlock Text="{Binding ItemCount}"
-                                           FontSize="{StaticResource FontFileDetailsSize}"
-                                           Foreground="{StaticResource TextSecondaryBrush}"
-                                           TextWrapping="Wrap"
-                                           HorizontalAlignment="Center"
-                                           TextAlignment="Center"
-                                           Margin="{StaticResource SpacingItemCountMargin}"/>
+                                            <local:RenameTextBox Text="{Binding EditName, UpdateSourceTrigger=PropertyChanged}"
+                                                     Background="Transparent"
+                                                     Foreground="{StaticResource WhiteBrush}"
+                                                     FontFamily="{StaticResource AppFont}"
+                                                     FontSize="{StaticResource FontFileNameSize}"
+                                                     BorderThickness="0"
+                                                     Padding="0"
+                                                     Margin="0"
+                                                     HorizontalAlignment="Stretch"
+                                                     TextAlignment="Center"
+                                                     TextWrapping="Wrap"
+                                                     VerticalContentAlignment="Center"
+                                                     CaretBrush="{StaticResource WhiteBrush}"
+                                                     SelectionBrush="{StaticResource RenameSelection}"
+                                                     SelectionOpacity="0"
+                                                     KeyDown="RenameBox_KeyDown"
+                                                     LostFocus="RenameBox_LostFocus">
+                                                <local:RenameTextBox.Style>
+                                                    <Style TargetType="local:RenameTextBox">
+                                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                                        <Style.Triggers>
+                                                            <DataTrigger Binding="{Binding IsEditing}" Value="True">
+                                                                <Setter Property="Visibility" Value="Visible"/>
+                                                            </DataTrigger>
+                                                        </Style.Triggers>
+                                                    </Style>
+                                                </local:RenameTextBox.Style>
+                                            </local:RenameTextBox>
+                                        </Grid>
+
+                                        <TextBlock Text="{Binding ItemCount}"
+                                                   IsHitTestVisible="False"
+                                                   FontSize="{StaticResource FontFileDetailsSize}"
+                                                   TextWrapping="Wrap"
+                                                   HorizontalAlignment="Center"
+                                                   TextAlignment="Center"
+                                                   Margin="{StaticResource SpacingItemCountMargin}">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Foreground" Value="{StaticResource TextSecondaryBrush}"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsSelected}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource WhiteBrush}"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Border>
                             </StackPanel>
                         </Border>
                     </DataTemplate>
