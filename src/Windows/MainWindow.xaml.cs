@@ -29,6 +29,7 @@ public partial class MainWindow : Window, IAppContextMenuHost
     private SidebarSectionView? _bookmarksSectionView;
     private string? _pendingRenamePath;
     private string? _pendingRenameDir;
+    private const double SidebarDividerWidth = 1;
     private bool _sidebarCollapsed;
     private double _sidebarWidth = 200;
     private string _lastStatusText = "";
@@ -879,11 +880,13 @@ public partial class MainWindow : Window, IAppContextMenuHost
         {
             SidebarColumn.Width = new GridLength(0);
             SplitterColumn.Width = new GridLength(0);
+            SidebarSplitter.Visibility = Visibility.Collapsed;
         }
         else
         {
             SidebarColumn.Width = new GridLength(_sidebarWidth);
-            SplitterColumn.Width = new GridLength(5);
+            SplitterColumn.Width = new GridLength(SidebarDividerWidth);
+            SidebarSplitter.Visibility = Visibility.Visible;
         }
 
         StatusBar.SetSidebarCollapsed(_sidebarCollapsed);

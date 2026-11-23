@@ -1,36 +1,74 @@
 <p align="center">
-  <img src="cover.png" alt="DotNetFM Banner" width="512" />
+  <img src="cover.png" alt="DotNetFM" width="512" />
 </p>
 
 <h1 align="center">DotNetFM</h1>
 
-<p align="center">
-  <strong>A modern, Linux-inspired file manager for Windows — built from scratch with C# and WPF.</strong>
-</p>
+<p align="center">Tabbed file manager for Windows. WPF, .NET 8, no UI libraries.</p>
 
 <p align="center">
-  <img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white" alt=".NET 8" />
-  <img src="https://img.shields.io/badge/C%23-12.0-239120?style=for-the-badge&logo=csharp&logoColor=white" alt="C#" />
-  <img src="https://img.shields.io/badge/WPF-0A0A0A?style=for-the-badge&logo=windows&logoColor=white" alt="WPF" />
-  <img src="https://img.shields.io/badge/Status-Alpha-orange?style=for-the-badge" alt="Status: Alpha" />
-  <img src="https://img.shields.io/badge/Version-0.0.7--alpha-blue?style=for-the-badge" alt="Version" />
-  <img src="https://img.shields.io/badge/License-MIT-blue?style=for-the-badge" alt="License" />
+  <img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white" alt=".NET 8" />
+  <img src="https://img.shields.io/badge/Status-Alpha-orange?style=flat-square" alt="Alpha" />
+  <img src="https://img.shields.io/badge/Version-0.0.7--alpha-blue?style=flat-square" alt="Version" />
+  <img src="https://img.shields.io/badge/License-MIT-blue?style=flat-square" alt="MIT" />
 </p>
 
 ---
 
-## What is DotNetFM?
+## Features
 
-DotNetFM is a lightweight, fast, and visually polished file manager for Windows. It draws deep inspiration from **[GNOME Nautilus](https://wiki.gnome.org/Apps/Files)** and the broader Linux desktop ecosystem, bringing that clean, purposeful design language to the Windows platform.
+- Tabs. Saved and restored between sessions.
+- Sidebar with places, drives and bookmarks. Resizable, collapsible.
+- Recycle Bin browsing with restore and permanent delete.
+- Archives: zip, tar, 7z, rar and more. Extracts through 7-Zip, NanaZip or WinRAR if installed.
+- Rename in place, drag and drop, rubber-band select, type-ahead, Ctrl+wheel zoom.
+- Configurable context menu and terminal command.
+- Colors, radii, spacing and fonts live in `Config/theme-config.json`. No rebuild to restyle.
 
-Every pixel, every interaction, and every component is **built from the ground up** — no bloated UI frameworks, no third-party file manager shells. Just pure **C#**, **WPF**, and a lot of Win32 interop where Windows demands it.
+## Shortcuts
 
-## Why?
+| Key | Action |
+| --- | --- |
+| `Ctrl+T` / `Ctrl+W` | New / close tab |
+| `Ctrl+Tab` / `Ctrl+Shift+Tab` | Next / previous tab |
+| `Alt+Left` / `Alt+Right` / `Backspace` | Back / forward / up |
+| `Ctrl+L` | Focus address bar |
+| `Ctrl+D` | Bookmark folder |
+| `Ctrl+B` | Toggle bookmarks |
+| `Ctrl+H` | Toggle hidden files |
+| `Ctrl+Plus` / `Ctrl+Minus` | Zoom |
+| `F2` / `Del` / `F5` | Rename / delete / refresh |
+| `Ctrl+X` / `Ctrl+C` / `Ctrl+V` / `Ctrl+A` | Cut / copy / paste / select all |
 
-Most Windows file managers are either stuck in the Windows 7 era or packed with features nobody asked for. DotNetFM takes a different approach: a **minimal, focused file manager** that feels right at home on a modern desktop, borrowing the best ideas from the Linux world while embracing native Windows capabilities under the hood.
+## Build
+
+Needs the .NET 8 SDK on Windows.
+
+```
+build.bat
+```
+
+Builds the Windows module, then publishes the app for `win-x64` with ReadyToRun.
+
+## Layout
+
+```
+src/
+  Core/                  Interfaces and models. Cross-platform, no UI.
+  addon-modules/
+    DotNetFM.Module.Windows/   Everything Win32 and shell lives here.
+  Controls/              WPF controls and dialogs.
+  Services/              App logic.
+  Windows/               App and main window.
+Config/                  Theme and sidebar icons.
+```
+
+Storage backends plug in through `IModule`. The Windows module is the only one so far.
+
+## Releases
+
+Bump the version in `dot-net-fm.csproj`, merge `main` into `release`. First line of the commit message is the version, the rest is the changelog. CI builds, zips and publishes.
 
 ## License
 
-This project is licensed under the [MIT License](LICENSE).
-
----
+[MIT](LICENSE)
