@@ -4,7 +4,7 @@
 
 <h1 align="center">DotNetFM</h1>
 
-<p align="center">Tabbed file manager for Windows. WPF, .NET 8, no UI libraries.</p>
+<p align="center">DotNetFM is a modern, Linux-inspired file manager for Windows, built from scratch with C# and WPF using a modular architecture — minimal, fast, and designed to bring the clean Nautilus-like desktop experience to Windows.</p>
 
 <p align="center">
   <img src="https://img.shields.io/badge/.NET-8.0-512BD4?style=flat-square&logo=dotnet&logoColor=white" alt=".NET 8" />
